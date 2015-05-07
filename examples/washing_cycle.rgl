@@ -1,0 +1,13 @@
+module Wash
+  (
+   input  push,
+   output fill,
+   output empty
+   );
+
+   never "{true} * {push} {! fill} 6";
+   never "{true} * {!push} 5 {fill}";
+   never "{true} * {fill} {true} {! empty}";
+   never "{true} * {fill} {empty}";
+
+endmodule

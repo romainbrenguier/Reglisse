@@ -1,0 +1,10 @@
+module Test
+  (
+   input  push,
+   output react
+   ); 
+
+   never "{true}* {push} {!react}";
+   never "{true}* {!push} {react}"; 
+      
+endmodule
