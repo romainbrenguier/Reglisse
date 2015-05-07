@@ -7,10 +7,14 @@ let () =
     (
       function
       | After_rules ->
-	flag ["doc";"use_ocaml-aiger"] (S[A "-I"; P "../../ocaml-aiger/_build"]);
-	flag ["ocaml";"compile";"use_ocaml-aiger"] (S[A "-I"; P "../../ocaml-aiger/_build"]);
-	flag ["ocaml";"link";"use_ocaml-aiger"] (P "../../ocaml-aiger/_build/aiger.cma");
-	flag ["ocaml";"compile";"use_ocaml-cudd"] (S[A "-I"; P "../../ocaml-cudd/"]);
+	flag ["doc";"use_ocaml-aiger"] 
+	  (S[A "-I"; P "../../ocaml-aiger/_build"]);
+	flag ["ocaml";"compile";"use_ocaml-aiger"]
+	  (S[A "-I"; P "../../ocaml-aiger/_build"]);
+	flag ["ocaml";"link";"use_ocaml-aiger"]
+	  (P "../../ocaml-aiger/_build/aiger.cma");
+	flag ["ocaml";"compile";"use_ocaml-cudd"]
+	  (S[A "-I"; P "../../ocaml-cudd/"]);
 	flag ["ocaml";"compile";"syntax_extension"] 
 	     (S[
 		  A "-I"; P"+camlp4";A"-pp";
