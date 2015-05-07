@@ -68,6 +68,7 @@ let reglisse_to_aiger t =
   | None, Some a | Some a, None -> a
   | Some a, Some b -> print_endline "warning: for now reachability conditions are not working";
     Aiger.compose a b
+  | None, None -> failwith "in Reglisse.reglisse_to_aiger: no safety and no reachability conditions"
 
 
 let control aiger inputs outputs = 
@@ -96,9 +97,9 @@ let safety_synthesis aiger inputs outputs =
   let contr,uncontr = control aiger inputs outputs in
   (*let v = AigerBdd.Variable.find (AigerBdd.of_aiger_symbol ("never_accept",Some 0)) in*)
 
-  let bdd_of_lit lit = 
+  (*let bdd_of_lit lit = 
     AigerBdd.Variable.to_bdd (AigerBdd.Variable.find (AigerBdd.of_aiger_symbol (Aiger.lit2symbol aiger lit)))
-  in
+  in*)
   let unsafe = AigerBdd.Variable.to_bdd (AigerBdd.Variable.find (AigerBdd.of_aiger_symbol ("never_accept",Some 0))) in
 
   let aigerBdd = AigerBdd.of_aiger aiger in
@@ -124,7 +125,7 @@ let safety_synthesis aiger inputs outputs =
   let aig_strategy = Attractor.strategy_to_aiger aiger strategy contr uncontr in
   aig_strategy
 
-
+(*
 let synthesis aiger inputs outputs = 
   print_endline "warning: for now reachability conditions are not working";
   let formula = WeakMuller.Formula.F_temp (WeakMuller.Formula.TF_always (StateFormula.AF_equal ("never_accept", 0))) in
@@ -146,7 +147,7 @@ let synthesis aiger inputs outputs =
   then print_endline "unrealizable"
   else Cudd.dumpDot ("initial_winning.out") initial_winning  
 
-
+*)
     
 let main = 
   if Array.length Sys.argv < 2 then Printf.printf "usage: %s <file.rgl>" Sys.argv.(0);

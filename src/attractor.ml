@@ -111,12 +111,12 @@ let join_output_input aiger ~output ~input =
     else
       let aig,lit =
 	match Aiger.lit2tag aiger (Aiger.strip gate) with
-	| Constant true -> aig, Aiger.aiger_true
-	| Constant false -> aig, Aiger.aiger_false
-	| Input l -> aig, (try Hashtbl.find map_inputs l with
+	| Aiger.Constant true -> aig, Aiger.aiger_true
+	| Aiger.Constant false -> aig, Aiger.aiger_false
+	| Aiger.Input l -> aig, (try Hashtbl.find map_inputs l with
 	  Not_found -> failwith "in Reglisse.join_input_output: the output depends on the input")
-	| Latch (l,_) -> aig,Hashtbl.find map_latches l
-	| And (g,l,r) -> 
+	| Aiger.Latch (l,_) -> aig,Hashtbl.find map_latches l
+	| Aiger.And (g,l,r) -> 
 	  let aig1,lit1 = aux aig l in
 	  let aig2,lit2 = aux aig1 r in
 	  let aig3,v = Aiger.new_var aig2 in
@@ -156,11 +156,11 @@ let join_output_input aiger ~output ~input =
 
 
 let strategy_to_aiger aiger strategy controllables uncontrollables= 
-  let bdd_of_lit lit = 
+  (*let bdd_of_lit lit = 
     AigerBdd.Variable.to_bdd (AigerBdd.Variable.find (AigerBdd.of_aiger_symbol (Aiger.lit2symbol aiger lit)))
-  in
+  in*)
 
-  let cube = AigerBdd.Variable.make_cube controllables in
+  (* let cube = AigerBdd.Variable.make_cube controllables in*)
 
   let var_map = AigerBdd.map_of_aiger aiger in
 

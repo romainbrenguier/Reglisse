@@ -91,7 +91,7 @@ let make decl name typ =
 	 
   in 
   let dec,var = aux name typ in
-  Speculog.DList dec, var
+  BddToAiger.DList dec, var
 
 (*
 
@@ -115,13 +115,13 @@ let declare decl name t =
 	) accu dl
   in
   let a = make name t in
-  Speculog.DList (aux name [] a), a
+  BddToAiger.DList (aux name [] a), a
 *)
 
-let input = make Speculog.input
-let output = make Speculog.output
-let reg = make Speculog.reg
-let wire = make Speculog.wire
+let input = make BddToAiger.input
+let output = make BddToAiger.output
+let reg = make BddToAiger.reg
+let wire = make BddToAiger.wire
 
 
 let to_expr = function
@@ -443,7 +443,7 @@ let functional_synthesis t2list =
     | _ -> failwith "In Expression.functional_synthesis: the two elements are not of the same type"
   in
   let list = List.fold_left aux [] t2list in
-  Speculog.functional_synthesis list 
+  BddToAiger.functional_synthesis list 
 
 
 let for_each list f =
@@ -467,9 +467,11 @@ let to_symbols aiger t =
       Array.fold_left
 	(fun accu b -> match b with 
 	| Boolean.EVar (s,i) -> (s,Some i) :: accu
+	| _ -> failwith "in Expression.to_symbols: all elements of the vector should be variables"
 	) [] array
     | EArray a -> 
       Array.fold_left (fun accu c -> List.rev_append (aux c) accu) [] a
+    | _ -> failwith "in Expression.to_symbols: this function is not implemented for records"
   in aux t
 
 let rename aiger s typ name =
@@ -525,22 +527,16 @@ let remove_input aiger inp =
   }
   
 let set_latch aiger lit output =
-  let update = List.assoc lit aiger.Aiger.latches in
   Common.debug (Printf.sprintf "setting latch %d -> %d\n" (Aiger.lit2int lit) (Aiger.lit2int output));
-  (*let aiger =
-    match Aiger.lit2tag aiger update with
-    | Input i -> remove_input aiger i
-    | _ -> Common.debug ("warning: the latch is not updated by an input"); aiger
-  in*)
   let latches = List.map (fun (l,u) -> 
     if l = lit then (l,output) else (l,u)
   ) aiger.Aiger.latches
   in
   let outputs = List.filter (fun o -> o <> output) aiger.Aiger.outputs in
   let aiger = {aiger with
-    Aiger.num_latches = List.length latches; (*aiger.Aiger.num_latches - 1;*)
+    Aiger.num_latches = List.length latches; 
     Aiger.latches = latches; 
-    Aiger.num_outputs = List.length outputs; (*aiger.Aiger.num_outputs - 1;*)
+    Aiger.num_outputs = List.length outputs;
     Aiger.outputs = outputs}
   in aiger	
 

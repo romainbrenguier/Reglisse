@@ -5,13 +5,13 @@ all: reglisse.byte
 clean:
 	ocamlbuild -clean
 	rm -f *.ppo *.ppr *.ast
-	rm ocaml-cudd.tar.gz
-	rm ocaml-aiger.tar.gz
+	rm -f ocaml-cudd.tar.gz
+	rm -f ocaml-aiger.tar.gz
 
 doc:
 	ocamlbuild speculog.docdir/index.html
 
-reglisse.byte:
+reglisse.byte: *.ml
 	ocamlbuild reglisse.byte
 
 test: reglisse.byte

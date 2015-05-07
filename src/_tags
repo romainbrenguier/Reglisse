@@ -1,5 +1,8 @@
 <*.ml>: pp(camlp4o)
 <aigerBdd.*>: use_ocaml-aiger, use_ocaml-cudd
+<bddToAiger.*>: use_ocaml-aiger, use_ocaml-cudd
+<boolean.*> or <expression.*>: use_ocaml-aiger, use_ocaml-cudd
 <attractor.*> or <region.*>: use_ocaml-aiger, use_ocaml-cudd
 <regularExpression.*> : use_ocaml-aiger, use_ocaml-cudd
+<verilog.*>: use_ocaml-aiger
 <reglisse.*> : pp(camlp4o), use_ocaml-aiger, use_ocaml-cudd
