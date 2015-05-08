@@ -176,10 +176,15 @@ let main =
   print_endline ("Writing the winning strategy to : "^file^".aag");
   *)
   
-  let output_file = file^".vl" in
-  print_endline ("writing output file in "^output_file);
+  let output_file = file^".aag" in
+  print_endline ("writing aiger in "^output_file);
   let outch = open_out output_file in
-  (* Aiger.write synth outch;*)
+  Aiger.write synth outch;
+  close_out outch;
+
+  let output_file = file^".vl" in
+  print_endline ("writing verilog in "^output_file);
+  let outch = open_out output_file in
   Verilog.of_aiger synth outch;
   close_out outch
 

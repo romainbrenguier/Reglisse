@@ -1,6 +1,6 @@
 
 
-all: reglisse.byte
+all: reglisse.byte simulation.byte
 
 clean:
 	ocamlbuild -clean
@@ -13,6 +13,9 @@ doc:
 
 reglisse.byte: *.ml
 	ocamlbuild reglisse.byte
+
+simulation.byte: *.ml
+	ocamlbuild simulation.byte
 
 test: reglisse.byte
 	./reglisse.byte examples/washing.rgl
