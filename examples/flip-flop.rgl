@@ -1,0 +1,11 @@
+module FlipFlop
+  (
+   input  data,
+   input  reset,
+   output q
+   ); 
+
+   never "{true}* {reset} ({!data}*) {q} ";
+   never "{true}* {data} ({data & ! reset}*) {!q}"; 
+      
+endmodule

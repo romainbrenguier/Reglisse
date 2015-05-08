@@ -1,0 +1,12 @@
+module Mux
+  (
+   input  sel,
+   input  a,
+   input  b,
+   output mux
+   ); 
+
+   never "{true}* {sel & !(a <-> mux)}";
+   never "{true}* {(!sel) & !(b <-> mux)}"; 
+      
+endmodule
