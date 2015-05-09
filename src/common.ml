@@ -1,3 +1,5 @@
+module StringSet = Set.Make(String)
+
 let log i = 
   let rec aux i =
     if i < 2 then 1

@@ -18,13 +18,22 @@ let add_never m never = {m with never=never :: m.never}
 let add_eventually m eventually = {m with eventually=eventually :: m.eventually}
 
 let lexer = Genlex.make_lexer
-  ["module";"endmodule";"never";"enventually";"input";"output";
+  ["module";"endmodule";"never";"enventually";
+   "only";"if";"then";"input";"output";
    "(";")";",";";"]
 
 let parse stream =
   let rec parse_conditions m = parser
-| [< 'Genlex.Kwd "never" ; 'Genlex.String regexp; 'Genlex.Kwd ";" >] ->
+| [< 'Genlex.Kwd "not" ; 'Genlex.String regexp; 'Genlex.Kwd ";" >] ->
   parse_conditions (add_never m regexp) stream
+| [< 'Genlex.Kwd "never" ; 'Genlex.String regexp; 'Genlex.Kwd ";" >] ->
+  parse_conditions (add_never m ("{true} * ("^regexp^")")) stream
+| [< 'Genlex.Kwd "eventually" ; 'Genlex.String regexp; 'Genlex.Kwd ";" >] ->
+  parse_conditions (add_eventually m regexp) stream
+| [< 'Genlex.Kwd "if" ; 'Genlex.String regexp; 'Genlex.Kwd "then"; 'Genlex.String seq; 'Genlex.Kwd ";" >] ->
+  parse_conditions (add_never m ("("^regexp ^")"^ (Sequence.string_neg seq))) stream
+| [< 'Genlex.Kwd "only"; 'Genlex.Kwd "if" ; 'Genlex.String seq; 'Genlex.Kwd "then"; 'Genlex.String regexp; 'Genlex.Kwd ";" >] ->
+  parse_conditions (add_never m ((Sequence.string_neg seq)^"("^regexp^")")) stream
 | [< 'Genlex.Kwd "endmodule" >] -> m
 | [< >] -> failwith "in Reglisse.parse: waiting for [never \"regexp string\";] or [endmodule]"
   in

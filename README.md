@@ -1,5 +1,5 @@
 # Reglisse
-Generate hardware description from safety conditions given by regular languages
+Generates hardware description from safety conditions given by regular languages.
 
 ## Installation
 You need ocaml-cudd and ocaml-aiger to compile this program.

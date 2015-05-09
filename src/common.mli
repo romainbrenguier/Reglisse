@@ -1,3 +1,5 @@
+module StringSet : Set.S with type elt = string
+
 (** Usefull functions for the size of integers *)
 (** [log i] corresponds to the number of bits neccessary to represent [i] in binary. *)
 val log : int -> int

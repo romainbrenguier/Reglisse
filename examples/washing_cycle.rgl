@@ -5,9 +5,8 @@ module Wash
    output empty
    );
 
-   never "{true} * {push} {! fill} 6";
-   never "{true} * {!push} 5 {fill}";
-   never "{true} * {fill} {true} {! empty}";
-   never "{true} * {fill} {empty}";
+   if "{true} * {push} {! fill} 5" then "{fill}";
+   never "{!push} 5 {fill}";
+   if "{fill}" then "{!empty} {empty}";
 
 endmodule

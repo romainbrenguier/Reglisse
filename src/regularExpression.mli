@@ -1,22 +1,11 @@
-module StringSet : Set.S with type elt = string
-
-(* Atomic propositions. 
-   Talks about proposition that are true in one state *)
-module Proposition : 
-sig
-  type t = Var of string * int | And of t * t | Or of t * t | Not of t | True | False
-  val to_string : t -> string 
-  val compare : t -> t -> int
-  val to_speculog : t -> string
-  val to_bdd : t -> Cudd.bdd
-(** the second argument is a maping from variables appearing in the proposition to speculog variables *)
-  val to_expression : t -> (string * Expression.t) list -> Expression.t
-  val labels : t -> StringSet.t
-end
-
-
 (** Type of regular expressions *)
-type t
+type t = 
+| Prop of Proposition.t 
+| Alt of t list
+| Concat of t * t
+| Star of t
+| Epsilon
+| Empty
 
 (** The grammar for regular expression is given by : 
 r ::= r | r ; r & r ; r* ; r r; (r); { p }; r+ ; r?; .
@@ -41,7 +30,7 @@ val opt : t -> t
 val prop : Proposition.t -> t
 
 (** Labels appearing in the expression *)
-val labels : t -> StringSet.t
+val labels : t -> Common.StringSet.t
 
 val to_string : t -> string
 
