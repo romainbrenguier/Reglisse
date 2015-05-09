@@ -18,4 +18,4 @@ unzip $OCAML_CUDD_ARCHIVE
 mv $OCAML_CUDD-master $OCAML_CUDD-master
 
 echo " Compiling Ocaml-CUDD..."
-(cd $OCAML_CUDD-master; ./install_cudd.sh; make)
+(cd $OCAML_CUDD; ./install_cudd.sh; make)

@@ -123,6 +123,7 @@ let join_output_input aiger ~output ~input =
 	  let lit = Aiger.var2lit v in
 	  let aig = Aiger.add_and aig3 lit lit1 lit2 in
 	  aig, lit
+	| _ -> failwith "in Attractor.join_output_input: the output should not depend on another output"
       in Hashtbl.add cache (Aiger.strip gate) lit;
       if Aiger.sign gate then aig, Aiger.aiger_not lit else aig, lit
   in 
@@ -156,39 +157,14 @@ let join_output_input aiger ~output ~input =
 
 
 let strategy_to_aiger aiger strategy controllables uncontrollables= 
-  (*let bdd_of_lit lit = 
-    AigerBdd.Variable.to_bdd (AigerBdd.Variable.find (AigerBdd.of_aiger_symbol (Aiger.lit2symbol aiger lit)))
-  in*)
-
-  (* let cube = AigerBdd.Variable.make_cube controllables in*)
-
   let var_map = AigerBdd.map_of_aiger aiger in
-
-  (*print_endline "MAP:";
-  print_endline (AigerBdd.map_to_string var_map);
-  *)
-
-  (*  (* adding variables as input except controllable ones *)
-  let circuit = 
-    AigerBdd.VariableMap.fold
-      (fun v lit c -> 
-	if List.mem v controllables then c 
-	else
-	  let sym = Aiger.lit2symbol aiger lit in
-	  let c,var = Aiger.new_var c in
-	  Aiger.add_input c (Aiger.var2lit var) sym
-      ) var_map_aiger Aiger.empty
-  in
-
-  let var_map = AigerBdd.map_of_aiger circuit in
-  *)
-  let circuit = aiger in
 
   let rec aux (bdd,circuit) contr = 
     (*Printf.printf "controlling variable: %d\n" (AigerBdd.Variable.to_int contr);*)
     let bdd_inp = AigerBdd.Variable.to_bdd contr in 
-    (* val is true when there we can put the variable contr to true *)
-    let val_inp = Cudd.bddExistAbstract (Cudd.bddAnd bdd_inp bdd) (AigerBdd.Variable.make_cube [contr]) in
+    (* val is true when there we cannot put the variable contr to false *)
+    let val_inp = 
+      Cudd.bddNot (Cudd.bddExistAbstract (Cudd.bddAnd (Cudd.bddNot bdd_inp) bdd) (AigerBdd.Variable.make_cube [contr])) in
 
     if !Common.display_debug
     then Cudd.dumpDot ("strategy_output_"^string_of_int (AigerBdd.Variable.to_int contr)^".dot") val_inp;
@@ -200,9 +176,6 @@ let strategy_to_aiger aiger strategy controllables uncontrollables=
       in ("_tmp_"^s,i)
     in
     let circuit = Aiger.add_output circuit output output_symbol in
-    (*Cudd.bddAnd bdd (Cudd.bddOr 
-		       (Cudd.bddAnd val_inp bdd_inp)
-		       (Cudd.bddAnd (Cudd.bddNot val_inp) (Cudd.bddNot bdd_inp))),*)
     
     let bdd =  Cudd.bddExistAbstract 
       (Cudd.bddAnd bdd (Cudd.bddOr 
@@ -216,10 +189,7 @@ let strategy_to_aiger aiger strategy controllables uncontrollables=
     bdd, circuit
   in
 
-  if !Common.display_debug then Cudd.dumpDot ("strategy.dot") strategy;
-
-  let bdd,circuit = 
-    List.fold_left aux (strategy,circuit) controllables in
+  let bdd,circuit = List.fold_left aux (strategy,aiger) controllables in
 
   let renaming = 
     List.map 
@@ -233,12 +203,13 @@ let strategy_to_aiger aiger strategy controllables uncontrollables=
   let aig = 
     List.fold_left 
       (fun accu (output,input) -> 
-	(* Printf.printf "joining %s -> %s\n" (Aiger.Symbol.to_string output) (Aiger.Symbol.to_string input);
-	Aiger.write accu stdout;*)
+	(*Aiger.write accu stdout;
+	Printf.printf "joining %s -> %s\n" (Aiger.Symbol.to_string output) (Aiger.Symbol.to_string input);*)
 	join_output_input accu ~output:(Aiger.symbol2lit accu output) ~input:(Aiger.symbol2lit accu input)
       ) circuit renaming
   in
 
+  (*Aiger.write aig stdout;*)
   Aiger.rename aig renaming
   
 

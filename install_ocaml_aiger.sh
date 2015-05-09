@@ -18,4 +18,4 @@ unzip $OCAML_AIGER_ARCHIVE
 mv $OCAML_AIGER-master $OCAML_AIGER
 
 echo " Compiling Ocaml-aiger ..."
-(cd $OCAML_AIGER-master; make)
+(cd $OCAML_AIGER; make)
