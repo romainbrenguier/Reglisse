@@ -1,7 +1,9 @@
 (** Functions to transform AIGER into verilog code *)
 let symbol_to_string s = match s with
-  | (name,Some i) -> name^"__"^string_of_int i
+  (* | (name,Some i) -> name^"["^string_of_int i^"]" *)
+  | (name,Some 0)
   | (name,None) -> name
+  | _ -> failwith "in Verilog.symbol_to_string: for now only Boolean values can be used"
 
 let lit2string aiger lit = 
   if lit = Aiger.aiger_true then "1"
@@ -18,8 +20,8 @@ let lit2string aiger lit =
       if Aiger.sign lit then "(!"^string^")" else string
     with Not_found -> "(lit "^string_of_int (Aiger.lit2int lit)^" not found)"
 
-let of_aiger aiger outch =
-  Printf.fprintf outch "module FromAiger(\n  input clk,\n";
+let of_aiger name aiger outch =
+  Printf.fprintf outch "module %s(\n  input clk,\n" name;
   
   List.iter
     (fun i -> 
@@ -40,7 +42,10 @@ let of_aiger aiger outch =
 
   List.iter
     (fun i -> 
-      Printf.fprintf outch "  reg %s;\n" i
+      let s = Aiger.size_symbol aiger i in
+      if s > 1 
+      then Printf.fprintf outch "  reg %s[%d:0];\n" i (s-1)
+      else Printf.fprintf outch "  reg %s;\n" i
     ) (Aiger.latches aiger);
 
   List.iter
@@ -55,6 +60,14 @@ let of_aiger aiger outch =
       Printf.fprintf outch "  assign gate%d = %s & %s;\n" (Aiger.lit2int i) ga gb
     ) aiger.Aiger.ands;
 
+  List.iter
+    (fun o -> 
+      let l = Aiger.symbol2lit aiger (o,None) in
+      let gm = lit2string aiger l in
+      Printf.fprintf outch "  assign %s = %s;\n" o gm
+    ) (Aiger.outputs aiger);
+
+
   Printf.fprintf outch "\n  always @(posedge clk) begin\n";
 
   List.iter
@@ -64,12 +77,6 @@ let of_aiger aiger outch =
       Printf.fprintf outch "    %s <= %s;\n" (symbol_to_string symbol) gm
     ) aiger.Aiger.latches;
 
-  List.iter
-    (fun o -> 
-      let l = Aiger.symbol2lit aiger (o,None) in
-      let gm = lit2string aiger l in
-      Printf.fprintf outch "    %s = %s;\n" o gm
-    ) (Aiger.outputs aiger);
 
   Printf.fprintf outch "  end\n";
   Printf.fprintf outch "endmodule\n"

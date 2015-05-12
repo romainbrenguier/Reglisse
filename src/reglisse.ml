@@ -191,10 +191,10 @@ let main =
   Aiger.write synth outch;
   close_out outch;
 
-  let output_file = file^".vl" in
+  let output_file = file^".v" in
   print_endline ("writing verilog in "^output_file);
   let outch = open_out output_file in
-  Verilog.of_aiger synth outch;
+  Verilog.of_aiger spec.module_name synth outch;
   close_out outch
 
 
