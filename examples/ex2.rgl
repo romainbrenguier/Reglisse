@@ -1,0 +1,21 @@
+module Test1
+  (
+   input  push,
+   output react
+   ); 
+
+   never "{true}* {push} {!react}";
+   never "{true}* {!push} {react}"; 
+      
+endmodule
+
+module Test2
+  (
+   input push2,
+   output react2
+   ); 
+
+   never "{true}* {push2} {!react2}";
+   never "{true}* {!push2} {react2}"; 
+      
+endmodule

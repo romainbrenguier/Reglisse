@@ -194,6 +194,7 @@ let strategy_to_aiger aiger strategy controllables uncontrollables=
   let renaming = 
     List.map 
       (fun contr -> 
+	Printf.printf "controlling variable: %d\n" (AigerBdd.Variable.to_int contr);
 	let o = AigerBdd.VariableMap.find contr var_map in
 	let (sym_s,sym_i) = Aiger.lit2symbol aiger o in
 	("_tmp_"^sym_s,sym_i),(sym_s,sym_i)
