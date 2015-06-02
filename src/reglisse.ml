@@ -22,6 +22,8 @@ let lexer = Genlex.make_lexer
    "only";"if";"then";"input";"output";
    "(";")";",";";"]
 
+exception NoMoreModule
+
 let parse stream =
   let rec parse_conditions m = parser
 | [< 'Genlex.Kwd "not" ; 'Genlex.String regexp; 'Genlex.Kwd ";" >] ->
@@ -54,7 +56,8 @@ let parse stream =
   let rec aux = parser
 | [< 'Genlex.Kwd "module"; 'Genlex.Ident mn; 'Genlex.Kwd "(" >] ->
   parse_arguments (new_module mn) stream
-| [< >] -> failwith "in Reglisse.parse: stream should start with: [module module_name ( ]"
+| [< >] -> raise NoMoreModule
+  (*failwith "in Reglisse.parse: stream should start with: [module module_name ( ]"*)
 
   in aux stream
 
@@ -134,6 +137,10 @@ let safety_synthesis aiger inputs outputs =
   let aig_strategy = Attractor.strategy_to_aiger aiger strategy contr uncontr in
   aig_strategy
 
+
+
+
+
 (*
 let synthesis aiger inputs outputs = 
   print_endline "warning: for now reachability conditions are not working";
@@ -159,45 +166,74 @@ let synthesis aiger inputs outputs =
 *)
     
 let main = 
-  if Array.length Sys.argv < 2 then Printf.printf "usage: %s <file.rgl>" Sys.argv.(0);
+  if Array.length Sys.argv < 2 then Printf.printf "usage: %s <file.rgl>\n" Sys.argv.(0);
   let file = Sys.argv.(1) in
   let inch = open_in file in
   let stream = Stream.of_channel inch in
   let token_stream = lexer stream in
-  let spec =
-    try
-      let spec = parse token_stream in
-      close_in inch;
-      spec 
-    with e -> 
-      print_endline "Remaining tokens:";
-      print_endline (Common.remaining_tokens token_stream);
-      close_in inch;
-      raise e
+  let specs =
+    let rec loop accu =
+      let spec =
+	try
+	  let spec = parse token_stream in
+	  Some spec 
+	with NoMoreModule -> 
+	  close_in inch;
+	  None
+	| e ->
+	  print_endline "Remaining tokens:";
+	  print_endline (Common.remaining_tokens token_stream);
+	  raise e
+
+      in match spec with Some x -> loop (x :: accu) | None -> accu
+    in 
+    let res = loop [] in
+    close_in inch;
+    List.rev res
+
   in 
-  let aiger = reglisse_to_aiger spec in
-  (* For debuging:
-    print_endline "Reglisse.reglisse_to_aiger : reglisse.aag";
-    Aiger.write_to_file aiger "reglisse.aag"; *)
-  let synth = safety_synthesis aiger spec.inputs spec.outputs in
-  (* For debuging:
-  Aiger.write synth stdout;
-  print_endline ("Writing the winning strategy to : "^file^".aag");
-  *)
-  
+  let synth = 
+    match specs with 
+    | [spec] -> 
+      let aiger = reglisse_to_aiger spec in
+      safety_synthesis aiger spec.inputs spec.outputs
+    | spec_list ->
+      let aigers = 
+	List.map (fun x -> 
+	  let aiger = reglisse_to_aiger x in
+	  let aigerBdd = AigerBdd.of_aiger aiger in
+	  let unsafe = AigerBdd.Variable.to_bdd (AigerBdd.Variable.find (AigerBdd.of_aiger_symbol ("never_accept",Some 0))) in 
+	  let contr,uncontr = control aiger x.inputs x.outputs in
+	  aiger,aigerBdd, contr, uncontr, (Region.of_bdds unsafe (Cudd.bddTrue()))
+	) spec_list
+      in
+      let product,winning = Admissibility.compositional_synthesis aigers
+      in
+      let strategy = Attractor.strategy product winning in
+      (*let aig_strategy = Attractor.strategy_to_aiger product strategy contr uncontr in
+      aig_strategy*)
+      let initial_states = List.map (fun (a,_,_,_,_) -> Region.initial_state a) aigers in
+      let initial = List.fold_left Cudd.bddAnd (Cudd.bddTrue()) initial_states in
+      let initial_winning = Cudd.bddRestrict (Region.latch_configuration winning) initial in
+      
+      if Cudd.value initial_winning = 1 
+      then failwith "realizable"
+      else if Cudd.value initial_winning = 0
+      then failwith "unrealizable"
+      else failwith "problem..."
+
+  in	
   let output_file = file^".aag" in
   print_endline ("writing aiger in "^output_file);
   let outch = open_out output_file in
   Aiger.write synth outch;
   close_out outch;
-
+  
   let output_file = file^".v" in
   print_endline ("writing verilog in "^output_file);
   let outch = open_out output_file in
-  Verilog.of_aiger spec.module_name synth outch;
+  Verilog.of_aiger (List.hd specs).module_name synth outch;
   close_out outch
-
-
-
+    
 
   

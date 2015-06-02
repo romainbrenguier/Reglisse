@@ -3,6 +3,7 @@
 <bddToAiger.*>: use_ocaml-aiger, use_ocaml-cudd
 <boolean.*> or <expression.*>: use_ocaml-aiger, use_ocaml-cudd
 <attractor.*> or <region.*>: use_ocaml-aiger, use_ocaml-cudd
+<admissibility.*>: use_ocaml-aiger, use_ocaml-cudd
 <proposition.*> or <regularExpression.*> or <sequence.*>: use_ocaml-aiger, use_ocaml-cudd
 <verilog.*>: use_ocaml-aiger
 <reglisse.*> : pp(camlp4o), use_ocaml-aiger, use_ocaml-cudd
