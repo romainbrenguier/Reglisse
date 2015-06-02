@@ -6,6 +6,6 @@ module FlipFlop
    ); 
 
    never "{true}* {reset} ({!data}*) {q} ";
-   never "{true}* {data} ({data & ! reset}*) {!q}"; 
+   never "{true}* {data & ! reset} ({! reset}*) {!q}"; 
       
 endmodule
