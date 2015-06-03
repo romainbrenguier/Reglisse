@@ -4,18 +4,20 @@ module Test1
    output react
    ); 
 
-   never "{true}* {push & !react}";
-   never "{true}* {react & !push}"; 
+   never "{push & !react}";
+   never "{react & !push}"; 
       
 endmodule
 
 module Test2
   (
    input push2,
+   input react,
    output react2
    ); 
 
-   never "{true}* {push2 & !react2}";
-   never "{true}* {react2 & !push2}"; 
+   never "{push2 & ! (react2 | react)}";
+   never "{react2 & !push2}"; 
+   never "{react & react2}";
       
 endmodule

@@ -21,10 +21,6 @@ val make : (AigerBdd.t -> Aiger.lit list -> Aiger.lit list -> Region.t) -> Aiger
 
 val strategies : AigerBdd.t -> (value -> Region.t) -> Region.t
 
-
-(** The second argument is a BDD representing the set of winning states *)
-val strongly_winning_strategy : AigerBdd.t -> Cudd.bdd -> Cudd.bdd
-
 (** The arguments are: the game, list of inputs controlled by player 1, list of inputs controlled by player 2, states to be avoided by player 1, states to be avoided by player 2. 
 We should assume that player 2 choses its inputs before player 1. *)
 val assume_admissible : AigerBdd.t -> AigerBdd.Variable.t list -> AigerBdd.Variable.t list -> Cudd.bdd -> Cudd.bdd -> Region.t

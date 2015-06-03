@@ -50,21 +50,18 @@ let make algo game contr uncontr =
   | Help -> failwith "Help states not implemented"
 
 
-let strategies_with_restriction restriction p v =
-  Printf.printf "warning restriction not used\n";
-  let successor_not_winning = Cudd.bddVectorCompose (Cudd.bddSwapVariables (Region.latch_input_configuration (v NotWinning)) (AigerBdd.array_variables p) (AigerBdd.array_next_variables p)) (AigerBdd.composition_vector p) in
-  let successor_losing = Cudd.bddVectorCompose (Cudd.bddSwapVariables (Region.latch_configuration (v Losing)) (AigerBdd.array_variables p) (AigerBdd.array_next_variables p)) (AigerBdd.composition_vector p) in
-  Region.intersection 
+let strategies aig_bdd v =
+  let not_winning = Region.latch_configuration (v NotWinning) in
+  let successor_not_winning = 
+    Cudd.bddVectorCompose (Cudd.bddSwapVariables not_winning (AigerBdd.array_variables aig_bdd) (AigerBdd.array_next_variables aig_bdd)) (AigerBdd.composition_vector aig_bdd) 
+  in
+  let losing = Region.latch_configuration (v Losing) in
+  let successor_losing = Cudd.bddVectorCompose (Cudd.bddSwapVariables losing (AigerBdd.array_variables aig_bdd) (AigerBdd.array_next_variables aig_bdd)) (AigerBdd.composition_vector aig_bdd) in
+  Region.union (v Winning) (Region.intersection_bdd (v NotLosing) (Cudd.bddNot successor_losing))
+  (*Region.intersection 
     (Region.negation (Region.intersection_bdd (v Winning) successor_not_winning))
     (Region.negation (Region.intersection_bdd (v NotLosing) successor_losing))
-(*  Cudd.bddAnd 
-    (Cudd.bddNot (Cudd.bddAnd (Region.latch_configuration (v Winning)) successorNotWinning))
-    (Cudd.bddNot (Cudd.bddAnd (Region.latch_configuration (v NotLosing)) successorLosing))
-*)
-
-let strategies x = strategies_with_restriction (Region.tt()) x
-
-let strongly_winning_strategy p winning = failwith "unimplemented"
+   *)
 
 let correct_strategy p strat controllables uncontrollables =
   let controllable_cube = AigerBdd.Variable.make_cube controllables in
@@ -107,26 +104,9 @@ let compositional_synthesis game_list =
     List.fold_left 
       (fun accu (a,g,c,u,err) ->
 	let v = value g c u err in
-	v Winning :: accu
-	  (*strategies g v :: accu*)
-(* for debuging 
-	Aiger.write_to_file a "game.aag";
-	let test = Region.negation (Attractor.trap g c u err) in
-	print_endline "writing unsafe.dot";
-	Cudd.dumpDot "unsafe.dot" err;
-	print_endline "writing value1.dot";
-	Cudd.dumpDot "value1.dot" (Region.latch_configuration (v Winning));
-	print_endline "writing neg_trap.dot";
-	Cudd.dumpDot "neg_trap.dot" (Region.latch_configuration test);
-	print_endline "writing value0.dot";
-	Cudd.dumpDot "value0.dot" (Region.latch_configuration (v CoopWinning));
-	print_endline "writing value-1.dot";
-	Cudd.dumpDot "value-1.dot" (Region.latch_configuration (v Losing)); *)
+	strategies g v :: accu
       ) [] game_list
   in
-  (*print_endline "writing adm.dot";
-  Cudd.dumpDot "adm.dot" (Region.latch_input_configuration (List.hd admissibles ));
-   *)
 
   let conjunction = 
     List.fold_left Region.intersection (Region.tt()) admissibles
@@ -146,13 +126,3 @@ let compositional_synthesis game_list =
       ) (Region.tt()) game_list
   in*)
   product,product_bdd,conjunction 
-(*
-
-  match game_list with 
-  | (a,g,c,u,err) :: s -> a, g, 
-			  let v = value g c u err in
-			  (*strategies g v*)
-			  v Winning
-			    (*Attractor.trap g c u err*)
-
-				   *)
