@@ -10,9 +10,9 @@ type value = Winning | CoopWinning | Help | Losing | NotWinning | NotLosing
 
 (** [value aiger controllables uncontrollables failure i] 
     Compute the set of states which have value [i].
-    It returns two BDDs, the first represents the configurations of the latches that have value [i], the other represents the pairs of configuration and action of the environment that have value [i].
+    It returns a region containing the configurations of the latches that have value [i], and the pairs of configuration and action of the environment that have value [i].
     To avoid computing the same sets several time, you should first compute [value aiger controllables uncontrollables failure] then call this on the [i]'s you need.
-    If weak is set to true then the controller as to provide its action before the environment.
+    If weak is set to true then the controller has to provide its action before the environment.
 *)
 val value : AigerBdd.t -> AigerBdd.Variable.t list -> AigerBdd.Variable.t list -> ?weak:bool -> Cudd.bdd -> value -> Region.t
 

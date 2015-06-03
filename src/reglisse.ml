@@ -160,9 +160,9 @@ let assume_admissible_synthesis aigers =
   else 
     (print_endline "problem determining if the initial state is winning";
      print_endline "writing BDDs in initial_winning.out initial_state.out and winning.out";
-     Cudd.dumpDot ("initial_winning.dot") initial_winning;
-     Cudd.dumpDot ("initial_state.dot") initial;
-     Cudd.dumpDot ("winning.dot") (Region.latch_configuration winning);
+     Cudd.dumpDot "initial_winning.dot" initial_winning;
+     Cudd.dumpDot "initial_state.dot" initial;
+     Cudd.dumpDot "winning.dot" (Region.latch_configuration winning);
     );
 
 
@@ -184,13 +184,10 @@ let assume_admissible_synthesis aigers =
 
   print_endline "aig strategy";
   let aig_strategy = Attractor.strategy_to_aiger product_aig strategy (AigerBdd.VariableSet.elements contr) (AigerBdd.VariableSet.elements uncontr) in
+  print_endline "computed";
   aig_strategy
 
     
-
-
-
-
 (*
 let synthesis aiger inputs outputs = 
   print_endline "warning: for now reachability conditions are not working";
@@ -212,7 +209,6 @@ let synthesis aiger inputs outputs =
   else if Cudd.value initial_winning = 0
   then print_endline "unrealizable"
   else Cudd.dumpDot ("initial_winning.out") initial_winning  
-
 *)
     
 let main = 

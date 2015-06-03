@@ -4,8 +4,8 @@ module Test1
    output react
    ); 
 
-   never "{true}* {push} {!react}";
-   never "{true}* {!push} {react}"; 
+   never "{true}* {push & !react}";
+   never "{true}* {react & !push}"; 
       
 endmodule
 
@@ -15,7 +15,7 @@ module Test2
    output react2
    ); 
 
-   never "{true}* {push2} {!react2}";
-   never "{true}* {!push2} {react2}"; 
+   never "{true}* {push2 & !react2}";
+   never "{true}* {react2 & !push2}"; 
       
 endmodule

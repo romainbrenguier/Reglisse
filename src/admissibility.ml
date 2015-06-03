@@ -106,8 +106,11 @@ let compositional_synthesis game_list =
   let admissibles = 
     List.fold_left 
       (fun accu (a,g,c,u,err) ->
-	Aiger.write_to_file a "game.aag";
 	let v = value g c u err in
+	v Winning :: accu
+	  (*strategies g v :: accu*)
+(* for debuging 
+	Aiger.write_to_file a "game.aag";
 	let test = Region.negation (Attractor.trap g c u err) in
 	print_endline "writing unsafe.dot";
 	Cudd.dumpDot "unsafe.dot" err;
@@ -118,30 +121,38 @@ let compositional_synthesis game_list =
 	print_endline "writing value0.dot";
 	Cudd.dumpDot "value0.dot" (Region.latch_configuration (v CoopWinning));
 	print_endline "writing value-1.dot";
-	Cudd.dumpDot "value-1.dot" (Region.latch_configuration (v Losing));
-	strategies g v :: accu
+	Cudd.dumpDot "value-1.dot" (Region.latch_configuration (v Losing)); *)
       ) [] game_list
   in
-  print_endline "writing adm.dot";
+  (*print_endline "writing adm.dot";
   Cudd.dumpDot "adm.dot" (Region.latch_input_configuration (List.hd admissibles ));
+   *)
 
   let conjunction = 
     List.fold_left Region.intersection (Region.tt()) admissibles
   in
   let product = 
-    print_endline "we should be carefull that the output has the same name in both cases";
     List.fold_left 
       (fun accu (a,_,_,_,_) -> 
 	Aiger.compose accu a
       ) Aiger.empty game_list
   in
   let product_bdd = AigerBdd.of_aiger product in
-  let winning =
+(*  let winning =
     List.fold_left
       (fun accu (a,g,c,u,err) ->
 	let v = Attractor.trap product_bdd c u (*conjunction*) err in
 	Region.intersection accu v
       ) (Region.tt()) game_list
-  in
-  product,product_bdd, winning
+  in*)
+  product,product_bdd,conjunction 
+(*
 
+  match game_list with 
+  | (a,g,c,u,err) :: s -> a, g, 
+			  let v = value g c u err in
+			  (*strategies g v*)
+			  v Winning
+			    (*Attractor.trap g c u err*)
+
+				   *)

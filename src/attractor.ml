@@ -169,36 +169,45 @@ let strategy_to_aiger aiger strategy controllables uncontrollables=
     if !Common.display_debug
     then Cudd.dumpDot ("strategy_output_"^string_of_int (AigerBdd.Variable.to_int contr)^".dot") val_inp;
 
-    let circuit, output = AigerBdd.add_bdd_to_aiger circuit val_inp var_map in
-    let output_symbol = 
-      let (s,i) = 
-	Aiger.lit2symbol aiger (AigerBdd.VariableMap.find contr var_map)
-      in ("_tmp_"^s,i)
-    in
-    let circuit = Aiger.add_output circuit output output_symbol in
-    
-    let bdd =  Cudd.bddExistAbstract 
-      (Cudd.bddAnd bdd (Cudd.bddOr 
-			  (Cudd.bddAnd val_inp bdd_inp)
-			  (Cudd.bddAnd (Cudd.bddNot val_inp) (Cudd.bddNot bdd_inp))))
-      (AigerBdd.Variable.make_cube [contr])
-
-    in 
-    if !Common.display_debug
-    then Cudd.dumpDot ("strategy_rest_"^string_of_int (AigerBdd.Variable.to_int contr)^".dot") bdd;
-    bdd, circuit
+    try
+      let circuit, output = AigerBdd.add_bdd_to_aiger circuit val_inp var_map in
+      
+      let output_symbol = 
+	let (s,i) = 
+	  Aiger.lit2symbol aiger (AigerBdd.VariableMap.find contr var_map)
+	in ("_tmp_"^s,i)
+      in
+      let circuit = Aiger.add_output circuit output output_symbol in
+      
+      let bdd =  Cudd.bddExistAbstract 
+		   (Cudd.bddAnd bdd (Cudd.bddOr 
+				       (Cudd.bddAnd val_inp bdd_inp)
+				       (Cudd.bddAnd (Cudd.bddNot val_inp) (Cudd.bddNot bdd_inp))))
+		   (AigerBdd.Variable.make_cube [contr])
+		   
+      in 
+      if !Common.display_debug
+      then Cudd.dumpDot ("strategy_rest_"^string_of_int (AigerBdd.Variable.to_int contr)^".dot") bdd;
+      bdd, circuit
+    with Not_found -> 
+      prerr_endline ("warning: no symbol found for output symbol "^(AigerBdd.Variable.to_string contr));
+      bdd, circuit
   in
 
   let bdd,circuit = List.fold_left aux (strategy,aiger) controllables in
 
   let renaming = 
-    List.map 
-      (fun contr -> 
-	Printf.printf "controlling variable: %d\n" (AigerBdd.Variable.to_int contr);
-	let o = AigerBdd.VariableMap.find contr var_map in
-	let (sym_s,sym_i) = Aiger.lit2symbol aiger o in
-	("_tmp_"^sym_s,sym_i),(sym_s,sym_i)
-      ) controllables
+    List.fold_left
+      (fun accu contr -> 
+       try
+	 Printf.printf "controlling variable: %d\n" (AigerBdd.Variable.to_int contr);
+	 let o = AigerBdd.VariableMap.find contr var_map in
+	 let (sym_s,sym_i) = Aiger.lit2symbol aiger o in
+	 (("_tmp_"^sym_s,sym_i),(sym_s,sym_i)) :: accu
+       with Not_found -> 
+	 prerr_endline ("warning: no symbol found for output symbol "^(AigerBdd.Variable.to_string contr));
+	 accu
+      ) [] controllables
   in
 
   let aig = 
