@@ -4,8 +4,7 @@ module Test1
    output react
    ); 
 
-   never "{push & !react}";
-   never "{react & !push}"; 
+   never "{! (push <-> react)}";
       
 endmodule
 

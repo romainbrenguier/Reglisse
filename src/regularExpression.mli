@@ -9,7 +9,7 @@ type t =
 
 (** The grammar for regular expression is given by : 
 r ::= r | r ; r & r ; r* ; r r; (r); { p }; r+ ; r?; .
-p ::= p | p ; p & p ; !p ; (p); ident ; true
+p ::= p | p ; p & p ; !p ; p <-> p; (p); ident ; true
 *)
 val of_string : string -> t
 

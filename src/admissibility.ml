@@ -13,7 +13,6 @@ type value = Winning | CoopWinning | Help | Losing | NotWinning | NotLosing
 let winning p controllables uncontrollables ?(weak=false) unsafe = 
   Region.negation (trap p controllables uncontrollables ~weak unsafe)
 
-
 let losing p controllables uncontrollables unsafe = 
   trap p (List.rev_append controllables uncontrollables) [] unsafe
 
@@ -57,7 +56,7 @@ let strategies aig_bdd v =
   in
   let losing = Region.latch_configuration (v Losing) in
   let successor_losing = Cudd.bddVectorCompose (Cudd.bddSwapVariables losing (AigerBdd.array_variables aig_bdd) (AigerBdd.array_next_variables aig_bdd)) (AigerBdd.composition_vector aig_bdd) in
-  Region.union (v Winning) (Region.intersection_bdd (v NotLosing) (Cudd.bddNot successor_losing))
+  Region.union (v Losing) (Region.union (v Winning) (Region.intersection_bdd (v Winning) (Cudd.bddNot successor_losing)))
   (*Region.intersection 
     (Region.negation (Region.intersection_bdd (v Winning) successor_not_winning))
     (Region.negation (Region.intersection_bdd (v NotLosing) successor_losing))
@@ -118,11 +117,29 @@ let compositional_synthesis game_list =
       ) Aiger.empty game_list
   in
   let product_bdd = AigerBdd.of_aiger product in
-(*  let winning =
+
+  let add_list set list = List.fold_left (fun a b -> AigerBdd.VariableSet.add b a) set list in
+  let of_list = add_list AigerBdd.VariableSet.empty in
+
+  let all_inputs = 
     List.fold_left
-      (fun accu (a,g,c,u,err) ->
-	let v = Attractor.trap product_bdd c u (*conjunction*) err in
-	Region.intersection accu v
-      ) (Region.tt()) game_list
-  in*)
-  product,product_bdd,conjunction 
+      (fun accu (_,_,c,u,_) -> 
+       add_list (add_list accu c) u
+      ) AigerBdd.VariableSet.empty game_list
+  in
+
+  let _,winning =
+    List.fold_left
+      (fun (i,accu) (a,g,c,_,err) ->
+       let u = AigerBdd.VariableSet.elements (AigerBdd.VariableSet.diff all_inputs (of_list c)) in
+       let _,restriction = 
+	 List.fold_left
+	   (fun (j,accu) adm -> if j = i then j+1,accu else j+1, Region.intersection adm accu
+	   ) (0,Region.tt()) (List.rev admissibles)
+       in
+       let unsafe = Region.of_bdds err (Cudd.bddFalse()) in
+       let v = Region.negation (Attractor.trap_with_restriction product_bdd c u unsafe restriction) in
+       i+1, Region.intersection accu v
+      ) (0,Region.tt()) game_list
+  in
+  product,product_bdd,winning 
