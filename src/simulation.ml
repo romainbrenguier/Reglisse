@@ -1,5 +1,7 @@
 open Common
 
+let display_latches = false
+
 let successors game valuation inputs = 
   let bdd_val = AigerBdd.bdd_of_valuation valuation in
   let bdd_inp = AigerBdd.bdd_of_valuation inputs in
@@ -73,7 +75,12 @@ let main =
 
   let game = AigerBdd.of_aiger aiger in
 
-  let outputs_latches = List.rev_append (Aiger.outputs aiger) (Aiger.latches aiger) in
+  let outputs_latches = 
+    if display_latches 
+    then List.rev_append (Aiger.outputs aiger) (Aiger.latches aiger) 
+    else Aiger.outputs aiger
+  in
+
   AigerBdd.print_valuation aiger outputs_latches state;
   let rec loop state = 
     try 

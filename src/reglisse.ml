@@ -6,15 +6,20 @@ type t =
     inputs: string list; 
     outputs: string list;
     never: string list;
+    if_then : (string * string) list;
+    (* Be carefull when using only_if, its semantics is not totaly intuitive *)
+    only_if : (string * string) list;
     eventually: string list;
   }
 
 let new_module name = 
-  {module_name=name;inputs=[];outputs=[];never=[];eventually=[]}
+  {module_name=name;inputs=[];outputs=[];never=[];eventually=[];if_then=[];only_if=[]}
 
 let add_input m input = {m with inputs=input :: m.inputs}
 let add_output m output = {m with outputs=output :: m.outputs}
 let add_never m never = {m with never=never :: m.never}
+let add_if_then m i t = {m with if_then=(i,t) :: m.if_then}
+let add_only_if m i t = {m with only_if=(i,t) :: m.only_if}
 let add_eventually m eventually = {m with eventually=eventually :: m.eventually}
 
 let lexer = Genlex.make_lexer
@@ -33,9 +38,9 @@ let parse stream =
 | [< 'Genlex.Kwd "eventually" ; 'Genlex.String regexp; 'Genlex.Kwd ";" >] ->
   parse_conditions (add_eventually m regexp) stream
 | [< 'Genlex.Kwd "if" ; 'Genlex.String regexp; 'Genlex.Kwd "then"; 'Genlex.String seq; 'Genlex.Kwd ";" >] ->
-  parse_conditions (add_never m ("("^regexp ^")"^ (Sequence.string_neg seq))) stream
+  parse_conditions (add_if_then m regexp seq) stream
 | [< 'Genlex.Kwd "only"; 'Genlex.Kwd "if" ; 'Genlex.String seq; 'Genlex.Kwd "then"; 'Genlex.String regexp; 'Genlex.Kwd ";" >] ->
-  parse_conditions (add_never m ((Sequence.string_neg seq)^"("^regexp^")")) stream
+  parse_conditions (add_only_if m seq regexp) stream
 | [< 'Genlex.Kwd "endmodule" >] -> m
 | [< >] -> failwith "in Reglisse.parse: waiting for [never \"regexp string\";] or [endmodule]"
   in
@@ -62,11 +67,31 @@ let parse stream =
   in aux stream
 
 
+let if_then_to_expr (if_string,then_string) =
+  let regexp_if = RegularExpression.of_string if_string in
+  let regexp_then = Sequence.string_neg then_string in
+  RegularExpression.concat regexp_if regexp_then 
+
+let only_if_to_expr (if_string,then_string) =
+  let regexp_if = Sequence.string_neg if_string in
+  let regexp_then = RegularExpression.of_string then_string in
+  RegularExpression.concat regexp_if regexp_then 
+
 let reglisse_to_aiger ?(prefix="never") t = 
   let aiger1 = 
     if t.never = [] then None
     else 
       let expressions = List.map RegularExpression.of_string t.never in
+      let expressions = 
+	List.rev_append
+	  (List.map if_then_to_expr t.if_then)
+	  expressions 
+      in
+      let expressions = 
+	List.rev_append
+	  (List.map only_if_to_expr t.only_if)
+	  expressions 
+      in
       let expr = RegularExpression.alt expressions in
       Some (RegularExpression.to_aiger ~prefix expr)
   in
