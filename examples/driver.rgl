@@ -1,0 +1,35 @@
+module Scheduler
+  (
+   input r1,
+   input r2,
+   output g1,
+   output g2
+   );
+
+   never "{r1} {!g1} 4";
+   never "{r2} {!g2} 4";
+   never "{r1 & r2}";
+   
+endmodule
+
+module Driver1
+  (
+   input a1,
+   input g1,
+   output r1
+   );
+
+   never "{a1} {!r1} 4";
+   never "{r1} ({!g1}*) {r1}";
+endmodule
+
+module Driver2
+  (
+   input a2,
+   input g2,
+   output r2
+   );
+
+   never "{a2} {!r2} 4";
+   never "{r2} ({!g2}*) {r2}";
+endmodule
