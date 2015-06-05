@@ -52,10 +52,10 @@ let make algo game contr uncontr =
 let strategies aig_bdd v =
   let not_winning = Region.latch_configuration (v NotWinning) in
   let successor_not_winning = 
-    Cudd.bddVectorCompose (Cudd.bddSwapVariables not_winning (AigerBdd.array_variables aig_bdd) (AigerBdd.array_next_variables aig_bdd)) (AigerBdd.composition_vector aig_bdd) 
+    Cudd.bddVectorCompose (AigerBdd.Circuit.rename_configuration not_winning (AigerBdd.Circuit.array_variables aig_bdd) (AigerBdd.Circuit.array_next_variables aig_bdd)) (AigerBdd.Circuit.composition_vector aig_bdd) 
   in
   let losing = Region.latch_configuration (v Losing) in
-  let successor_losing = Cudd.bddVectorCompose (Cudd.bddSwapVariables losing (AigerBdd.array_variables aig_bdd) (AigerBdd.array_next_variables aig_bdd)) (AigerBdd.composition_vector aig_bdd) in
+  let successor_losing = Cudd.bddVectorCompose (AigerBdd.Circuit.rename_configuration losing (AigerBdd.Circuit.array_variables aig_bdd) (AigerBdd.Circuit.array_next_variables aig_bdd)) (AigerBdd.Circuit.composition_vector aig_bdd) in
   Region.union (v Losing) (Region.union (v Winning) (Region.intersection_bdd (v Winning) (Cudd.bddNot successor_losing)))
   (*Region.intersection 
     (Region.negation (Region.intersection_bdd (v Winning) successor_not_winning))
@@ -65,7 +65,7 @@ let strategies aig_bdd v =
 let correct_strategy p strat controllables uncontrollables =
   let controllable_cube = AigerBdd.Variable.make_cube controllables in
   let uncontrollable_cube = AigerBdd.Variable.make_cube uncontrollables in
-  let variables_cube = AigerBdd.Variable.make_cube (AigerBdd.VariableSet.elements (AigerBdd.variables p)) in
+  let variables_cube = AigerBdd.Variable.make_cube (AigerBdd.VariableSet.elements (AigerBdd.Circuit.variables p)) in
   let exist_quantified = Cudd.bddExistAbstract strat controllable_cube in
   let univ_quantified = Cudd.bddUnivAbstract exist_quantified uncontrollable_cube in
   Cudd.bddUnivAbstract univ_quantified variables_cube
@@ -74,8 +74,8 @@ let check_strategies p strat controllables uncontrollables u =
   let controllable_cube = Cudd.make_cube (List.map Aiger.lit2int controllables) in
   let uncontrollable_cube = Cudd.make_cube (List.map Aiger.lit2int uncontrollables) in
   let unsafe_pred u =
-    let renamed = Cudd.bddSwapVariables u (AigerBdd.array_variables p) (AigerBdd.array_next_variables p) in
-    let substitued = Cudd.bddVectorCompose renamed (AigerBdd.composition_vector p) in
+    let renamed = AigerBdd.Circuit.rename_configuration u (AigerBdd.Circuit.array_variables p) (AigerBdd.Circuit.array_next_variables p) in
+    let substitued = Cudd.bddVectorCompose renamed (AigerBdd.Circuit.composition_vector p) in
     let apply_strat = Cudd.bddAnd substitued strat in
     let exist_quantified = Cudd.bddExistAbstract apply_strat controllable_cube in
     let exist_quantified1 = Cudd.bddExistAbstract exist_quantified uncontrollable_cube in
@@ -116,7 +116,7 @@ let compositional_synthesis game_list =
 	Aiger.compose accu a
       ) Aiger.empty game_list
   in
-  let product_bdd = AigerBdd.of_aiger product in
+  let product_bdd = AigerBdd.Circuit.of_aiger product in
 
   let add_list set list = List.fold_left (fun a b -> AigerBdd.VariableSet.add b a) set list in
   let of_list = add_list AigerBdd.VariableSet.empty in

@@ -11,21 +11,21 @@ val controllable_variables : Aiger.t -> (AigerBdd.variable list * AigerBdd.varia
 (** [attractor aiger controllables uncontrollables goal] 
     Compute the set of states from which the controller can force going to the goal states. By default weak is set to false which means that controller is player 2 
 *)
-val attractor : AigerBdd.t -> AigerBdd.variable list -> AigerBdd.variable list -> ?weak:bool -> Cudd.bdd -> Region.t
+val attractor : AigerBdd.Circuit.t -> AigerBdd.variable list -> AigerBdd.variable list -> ?weak:bool -> Cudd.bdd -> Region.t
 
 (** [trap aiger controllables uncontrollables failure] 
     Compute the set of states from which the controller cannot avoid going to the failure states. If the weak flag is set to true, this means that the controller cannot see the uncontrollable actions before taking its decision (ie controller = player 2).
 *)
-val trap : AigerBdd.t -> AigerBdd.variable list -> AigerBdd.variable list -> ?weak:bool -> Cudd.bdd -> Region.t
+val trap : AigerBdd.Circuit.t -> AigerBdd.variable list -> AigerBdd.variable list -> ?weak:bool -> Cudd.bdd -> Region.t
 
 (** Compute the same operator as the previous function, except that the actions are restricted by the last argument *)
-val attractor_with_restriction : AigerBdd.t -> AigerBdd.variable list -> AigerBdd.variable list -> ?weak:bool -> Region.t -> Region.t -> Region.t
+val attractor_with_restriction : AigerBdd.Circuit.t -> AigerBdd.variable list -> AigerBdd.variable list -> ?weak:bool -> Region.t -> Region.t -> Region.t
 
 (** Compute the same operator as the previous function, except that the first BDD gives restriction on the actions of the controller and the environment *)
-val trap_with_restriction : AigerBdd.t -> AigerBdd.variable list -> AigerBdd.variable list -> ?weak:bool -> Region.t -> Region.t -> Region.t
+val trap_with_restriction : AigerBdd.Circuit.t -> AigerBdd.variable list -> AigerBdd.variable list -> ?weak:bool -> Region.t -> Region.t -> Region.t
 
 (** Construct a BDD representing a winning strategy *)
-val strategy : AigerBdd.t -> Region.t -> Cudd.bdd
+val strategy : AigerBdd.Circuit.t -> Region.t -> Cudd.bdd
 
 
 (** Takes a BDD representing the winning strategy and the controllable and uncontrollable inputs and returns individual BDDs to control the controllable inputs *)

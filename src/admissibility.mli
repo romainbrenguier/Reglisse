@@ -14,23 +14,23 @@ type value = Winning | CoopWinning | Help | Losing | NotWinning | NotLosing
     To avoid computing the same sets several time, you should first compute [value aiger controllables uncontrollables failure] then call this on the [i]'s you need.
     If weak is set to true then the controller has to provide its action before the environment.
 *)
-val value : AigerBdd.t -> AigerBdd.Variable.t list -> AigerBdd.Variable.t list -> ?weak:bool -> Cudd.bdd -> value -> Region.t
+val value : AigerBdd.Circuit.t -> AigerBdd.Variable.t list -> AigerBdd.Variable.t list -> ?weak:bool -> Cudd.bdd -> value -> Region.t
 
 (** Given an algorithm to compute winning states, gives an algorithm to compute the value *)
-val make : (AigerBdd.t -> Aiger.lit list -> Aiger.lit list -> Region.t) -> AigerBdd.t -> Aiger.lit list -> Aiger.lit list -> value -> Region.t
+val make : (AigerBdd.Circuit.t -> Aiger.lit list -> Aiger.lit list -> Region.t) -> AigerBdd.Circuit.t -> Aiger.lit list -> Aiger.lit list -> value -> Region.t
 
-val strategies : AigerBdd.t -> (value -> Region.t) -> Region.t
+val strategies : AigerBdd.Circuit.t -> (value -> Region.t) -> Region.t
 
 (** The arguments are: the game, list of inputs controlled by player 1, list of inputs controlled by player 2, states to be avoided by player 1, states to be avoided by player 2. 
 We should assume that player 2 choses its inputs before player 1. *)
-val assume_admissible : AigerBdd.t -> AigerBdd.Variable.t list -> AigerBdd.Variable.t list -> Cudd.bdd -> Cudd.bdd -> Region.t
+val assume_admissible : AigerBdd.Circuit.t -> AigerBdd.Variable.t list -> AigerBdd.Variable.t list -> Cudd.bdd -> Cudd.bdd -> Region.t
 
-val compositional_synthesis : (Aiger.t * AigerBdd.t * AigerBdd.Variable.t list * AigerBdd.Variable.t list * Cudd.bdd) list -> Aiger.t * AigerBdd.t * Region.t
+val compositional_synthesis : (Aiger.t * AigerBdd.Circuit.t * AigerBdd.Variable.t list * AigerBdd.Variable.t list * Cudd.bdd) list -> Aiger.t * AigerBdd.Circuit.t * Region.t
 
 (** Given a strategy, computes the set of unsafe states.
     The function checks that the strategy is safe but not that it is a correct strategy (ie: at least one action is possible in each state)
 *)
-val check_strategies : AigerBdd.t -> Cudd.bdd -> Aiger.lit list -> Aiger.lit list -> Cudd.bdd -> Cudd.bdd
+val check_strategies : AigerBdd.Circuit.t -> Cudd.bdd -> Aiger.lit list -> Aiger.lit list -> Cudd.bdd -> Cudd.bdd
 
 (** The function checks that the strategy is a correct strategy (ie: at least one action is possible in each state)*)
-val correct_strategy : AigerBdd.t -> Cudd.bdd -> AigerBdd.Variable.t list -> AigerBdd.Variable.t list -> Cudd.bdd
+val correct_strategy : AigerBdd.Circuit.t -> Cudd.bdd -> AigerBdd.Variable.t list -> AigerBdd.Variable.t list -> Cudd.bdd

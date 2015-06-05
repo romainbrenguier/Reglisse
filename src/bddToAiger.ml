@@ -17,22 +17,6 @@ let rec add_declaration types declaration = match declaration with
 let of_declaration dl =
   List.fold_left add_declaration AigerBdd.SymbolMap.empty dl
 
-(*
-let find_declaration dl name =
-  let rec aux dl = match dl with 
-    | [] -> None
-    | hd :: tl -> match hd with
-      | Input (x,i) | Output (x,i) | Reg (x,i) | Wire (x,i) when x = name -> Some hd
-      | DList dl -> (match aux dl with
-	| Some x -> Some x | None -> aux tl)
-      | _ -> aux tl
-  in aux dl
-
-let size_declaration decl = match decl with
-  | Input (_,i) | Output (_,i) | Reg (_,i) | Wire (_,i) -> i 
-  | _ -> None
-*)
-
 let inputs types = 
   AigerBdd.SymbolMap.fold 
     (fun _ declaration accu ->
@@ -249,13 +233,6 @@ let types_of_updates updates =
        if SymbolSet.mem s read then o else SymbolSet.add s o
       )  write SymbolSet.empty
   in
-(* (* Debug *)
-  print_endline "registers:";
-  SymbolSet.iter (fun (s,i) -> Printf.printf "%s<%d> ; " s i) latches;
-  print_newline ();
-  print_endline "inputs:";
-  SymbolSet.iter (fun (s,i) -> Printf.printf "%s<%d> ; " s i) inputs;
-  print_newline ();*)
   inputs,outputs,latches
 
 (* The declarations are unecessary, we could deduce them from the expressions *)
@@ -275,8 +252,8 @@ let functional_synthesis (*declarations*) updates =
 		 then (((s,io),Constraint.of_expr (Integer.get expr i))::lb,ob,i+1)
 		 else if SymbolSet.mem (s,io) outputs
 		 then (lb,((s,io),Constraint.of_expr (Integer.get expr i))::ob,i+1)
-		 else failwith ("In Speculog.functional_synthesis: the variable "^s^" is neither a latch nor an output")
-	      | _ -> failwith "In Speculog.functional_synthesis: the expression on the left should be a variable"
+		 else failwith ("In BddToAiger.functional_synthesis: the variable "^s^" is neither a latch nor an output")
+	      | _ -> failwith "In BddToAiger.functional_synthesis: the expression on the left should be a variable"
 	    ) (lb,ob,0) ba_var 
 	in lb,ob
       ) ([],[]) updates 

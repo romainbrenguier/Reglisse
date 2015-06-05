@@ -6,7 +6,7 @@ let successors game valuation inputs =
   let bdd_val = AigerBdd.bdd_of_valuation valuation in
   let bdd_inp = AigerBdd.bdd_of_valuation inputs in
   let bdd = Cudd.bddAnd bdd_val bdd_inp in
-  let update = AigerBdd.updates game in
+  let update = AigerBdd.Circuit.updates game in
   let new_val = 
     AigerBdd.VariableMap.fold
       (fun var _ accu -> 
@@ -73,7 +73,7 @@ let main =
       )
   in
 
-  let game = AigerBdd.of_aiger aiger in
+  let game = AigerBdd.Circuit.of_aiger aiger in
 
   let outputs_latches = 
     if display_latches 
@@ -81,12 +81,12 @@ let main =
     else Aiger.outputs aiger
   in
 
-  AigerBdd.print_valuation aiger outputs_latches state;
+  AigerBdd.Circuit.print_valuation aiger outputs_latches state;
   let rec loop state = 
     try 
       let inputs = input_inputs aiger in
       let new_state = successors game state inputs in
-      AigerBdd.print_valuation aiger outputs_latches new_state;
+      AigerBdd.Circuit.print_valuation aiger outputs_latches new_state;
       loop new_state
     with
     | End_of_file -> state

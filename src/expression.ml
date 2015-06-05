@@ -93,31 +93,6 @@ let make decl name typ =
   let dec,var = aux name typ in
   BddToAiger.DList dec, var
 
-(*
-
-let declare decl name t = 
-  let rec aux prefix = function
-    | EUnit -> 
-    | EBool x | EInt x -> 
-      let v,dx = decl x in
-      v :: accu, dx :: d
-    | EArray a -> 
-      let _, accu = 
-	Array.fold_left
-	  (fun (i,accu) t -> 
-	    i+1,aux (Printf.sprintf "%s[%d]" prefix i) accu t
-	  ) (0,accu) a
-      in accu
-    | ERecord dl -> 
-      List.fold_left
-	(fun accu (name,t) -> 
-	  aux (Printf.sprintf "%s.%s" prefix name) accu t
-	) accu dl
-  in
-  let a = make name t in
-  BddToAiger.DList (aux name [] a), a
-*)
-
 let input = make BddToAiger.input
 let output = make BddToAiger.output
 let reg = make BddToAiger.reg

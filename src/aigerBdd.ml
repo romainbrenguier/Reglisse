@@ -28,7 +28,7 @@ struct
     let i = !last_variable in
     last_variable := !last_variable + 2;
     Hashtbl.add table_variable symbol i;
-    (*(* Debug *) Printf.printf "new variable %s -> %d\n" (symbol_to_string symbol) i; *)
+    (* (* Debug *) Printf.printf "new variable %s -> %d\n" (symbol_to_string symbol) i; *)
     i
     
   let find (l:symbol) = 
@@ -70,7 +70,7 @@ let map_of_aiger aiger =
   List.fold_left
     (fun m (l,_) -> 
      let sym = Aiger.lit2symbol aiger l in
-     (*Printf.printf "adding to map latch %d (%s)\n" (Aiger.lit2int l) (Aiger.Symbol.to_string sym);*)
+     (* Printf.printf "adding to map latch %d (%s)\n" (Aiger.lit2int l) (Aiger.Symbol.to_string sym);*)
      VariableMap.add (Variable.find (of_aiger_symbol sym)) l m
     ) m aiger.Aiger.latches
 
@@ -108,7 +108,12 @@ exception UndeclaredLit of Aiger.lit
 module BddMap = Map.Make(struct type t = Cudd.bdd let compare = Cudd.compare end)
 
 (* We should normalize the cache: ie no negated nodes *)
-let add_bdd_to_aiger aiger bdd v2l = 
+let add_bdd_to_aiger aiger v2l bdd = 
+  let v2l = VariableMap.merge 
+	      (fun k a b -> match a,b with 
+			  | Some x , _ | None , Some x -> Some x
+			  | _ -> None
+	      ) v2l (map_of_aiger aiger) in
   let cache = BddMap.empty in
 
   let rec aux bdd aig cache = 
@@ -166,29 +171,23 @@ let add_bdd_to_aiger aiger bdd v2l =
 	(aig,res,BddMap.add bdd res cache)
 
   in 
-(*  try *)
   let aig,res,_ = aux bdd aiger cache in
   aig,res
-(*  with Aiger.BadAnd(x,y,z) -> 
-    Printf.printf "bad and %d %d %d\n" (Aiger.lit2int x) (Aiger.lit2int y) (Aiger.lit2int z);
-    raise (UndeclaredLit(x))
-
-*)
 
 
 let bdds_to_aiger ~inputs ~latches ~outputs =
   (* mapping variable to litterals *)
   let v2l = VariableMap.empty in
   let aig = Aiger.empty in
-  let v2l,aig = 
+  let aig = 
     List.fold_left
-      (fun (v2l,aig) i -> 
-       (* (* Debug *) Printf.eprintf "adding %s<%d>\n" (fst i) (snd i); *)
+      (fun aig i -> 
+       (* (* Debug *) Printf.eprintf "adding %s<%d>\n" (fst i) (snd i);  *)
        let aig,var = Aiger.new_var aig in
        let lit = Aiger.var2lit var in
-       VariableMap.add (Variable.find i) lit v2l,
+       (* VariableMap.add (Variable.find i) lit v2l,*)
        Aiger.add_input aig lit (to_aiger_symbol i)
-      ) (v2l,aig) inputs 
+      ) aig inputs
   in
   let v2l,aig = 
     List.fold_left
@@ -196,6 +195,7 @@ let bdds_to_aiger ~inputs ~latches ~outputs =
        (* (* Debug *) Printf.eprintf "adding %s<%d>\n" (fst l) (snd l);*)
        let aig,var = Aiger.new_var aig in
        let lit = Aiger.var2lit var in
+       (* Hashtbl.add mapping l lit;*)
        VariableMap.add (Variable.find l) lit v2l,
        aig
       ) (v2l,aig) latches
@@ -203,15 +203,15 @@ let bdds_to_aiger ~inputs ~latches ~outputs =
   let aig =
     List.fold_left
       (fun aig (l,bdd) ->
-       let aig,lit = add_bdd_to_aiger aig bdd v2l in
-       let var = Variable.find l  in
+       let aig,lit = add_bdd_to_aiger aig v2l bdd in
+       let var = Variable.find l in
        Aiger.add_latch aig (VariableMap.find var v2l) lit (to_aiger_symbol l)
       ) aig latches 
   in 
   let aig =
     List.fold_left
       (fun aig (o,bdd) ->
-       let aig,lit = add_bdd_to_aiger aig bdd v2l in
+       let aig,lit = add_bdd_to_aiger aig v2l bdd in
        let aig = Aiger.add_output aig lit (to_aiger_symbol o) in
        aig 
       ) aig outputs 
@@ -347,86 +347,15 @@ let compute_updates aiger =
   updates
 
 
-
-type t = 
-  {
-    updates:(Variable.t , Cudd.bdd) Hashtbl.t;
-    variables: VariableSet.t;
-    next_variables: VariableSet.t;
-    array_variables: int array;
-    array_next_variables: int array;
-    composition_vector: Cudd.bdd array;
-  }
-
-let updates p = p.updates
-let variables p = p.variables
-let next_variables p = p.next_variables
-let array_variables p = p.array_variables
-let array_next_variables p = p.array_next_variables
-let composition_vector p = p.composition_vector
-
-let of_aiger aiger = 
-  let updates = compute_updates aiger in
-  let variables = variables_aiger aiger in
-  let next_variables = VariableSet.fold (fun x accu -> VariableSet.add (Variable.next x) accu) variables VariableSet.empty in
-  let array_variables = Array.of_list (VariableSet.elements variables) in
-  let array_next_variables = Array.of_list (VariableSet.elements next_variables) in
-  let composition_vector = 
-    Array.init (aiger.Aiger.maxvar * 2 + 2) (* should it really be this value ? *)
-	       (fun i -> 
-		try Hashtbl.find updates (i-1)
-		with Not_found -> Cudd.bddTrue())
-  in
-  { updates = updates; variables=variables; next_variables = next_variables;
-    array_variables=array_variables; array_next_variables = array_next_variables;
-    composition_vector=composition_vector;}
-
-let rename_configuration bdd variables next_variables =
-  Cudd.bddSwapVariables bdd variables next_variables
+let valuation_of_list list = 
+  List.fold_left (fun accu (x,b) -> VariableMap.add x b accu) VariableMap.empty list
 
 let rec fixpoint f x =
   let y = f x in if Cudd.equal y x then x else fixpoint f y
 
-let valuation_of_list list = 
-  List.fold_left (fun accu (x,b) -> VariableMap.add x b accu) VariableMap.empty list
-
-
-let print_valuation aiger names valuation = 
-  List.iter
-    (fun name ->
-      let size = Aiger.size_symbol aiger name in
-      let value = ref 0 in
-      for i = size - 1 downto 0 do
-	(value := 2 * !value + 
-		    (if VariableMap.find (Variable.find (name,i)) valuation
-	    then 1 else 0));
-	(*Printf.printf "%s.(%d) (= var %d): %b\n" name i (Variable.to_int (Variable.find (name,i))) (VariableMap.find (Variable.find (name,i)) valuation);*)
-	
-      done;
-      Printf.printf "%s = %d\n" name !value
-    ) names
-    
-
-let initial_state aiger = 
-  valuation_of_list 
-    (List.fold_left 
-       (fun accu name -> 
-	 let literals = Aiger.name_to_literals aiger name in
-	 let variables = 
-	   Array.mapi 
-	     (fun i lit -> 
-	       let v = Variable.find (name,i) 
-	       in (v,false)
-	     ) literals
-	 in List.rev_append (Array.to_list variables) accu
-       ) [] (List.rev_append (Aiger.latches aiger) (Aiger.outputs aiger))
-    )
-
 
 
 let reorder_aiger aiger =
-  print_endline "Reordering:";
-  Aiger.write aiger stdout;
   let ands = Hashtbl.create aiger.Aiger.num_ands in
   let mapping = Hashtbl.create aiger.Aiger.num_ands in
   List.iter (fun (a,b,c) -> Hashtbl.add ands a (a,b,c)) aiger.Aiger.ands;
@@ -482,3 +411,82 @@ let reorder_aiger aiger =
       )  aiger.Aiger.abstract Aiger.LitMap.empty in
 
   {aiger with ands = List.rev gates; latches = latches; outputs=outputs; symbols=symbols; abstract=abstract}
+
+module Circuit = 
+  struct
+
+type t = 
+  {
+    updates:(Variable.t , Cudd.bdd) Hashtbl.t;
+    variables: VariableSet.t;
+    next_variables: VariableSet.t;
+    map: Aiger.lit VariableMap.t;
+    array_variables: Variable.t array;
+    array_next_variables: Variable.t array;
+    composition_vector: Cudd.bdd array;
+  }
+
+let updates p = p.updates
+let variables p = p.variables
+let next_variables p = p.next_variables
+let array_variables p = p.array_variables
+let array_next_variables p = p.array_next_variables
+let composition_vector p = p.composition_vector
+let map p = p.map
+
+let of_aiger aiger = 
+  let updates = compute_updates aiger in
+  let variables = variables_aiger aiger in
+  let next_variables = VariableSet.fold (fun x accu -> VariableSet.add (Variable.next x) accu) variables VariableSet.empty in
+  let array_variables = Array.of_list (VariableSet.elements variables) in
+  let array_next_variables = Array.of_list (VariableSet.elements next_variables) in
+  let composition_vector = 
+    Array.init (aiger.Aiger.maxvar * 2 + 2) (* should it really be this value ? *)
+	       (fun i -> 
+		try Hashtbl.find updates (i-1)
+		with Not_found -> Cudd.bddTrue())
+  in
+  let map = map_of_aiger aiger in
+  { updates = updates; variables=variables; next_variables = next_variables;
+    array_variables=array_variables; array_next_variables = array_next_variables;
+    composition_vector=composition_vector; map=map}
+
+let rename_configuration bdd variables next_variables =
+  Cudd.bddSwapVariables bdd variables next_variables
+
+
+let print_valuation aiger names valuation = 
+  List.iter
+    (fun name ->
+      let size = Aiger.size_symbol aiger name in
+      let value = ref 0 in
+      for i = size - 1 downto 0 do
+	(value := 2 * !value + 
+		    (if VariableMap.find (Variable.find (name,i)) valuation
+	    then 1 else 0));
+	(*Printf.printf "%s.(%d) (= var %d): %b\n" name i (Variable.to_int (Variable.find (name,i))) (VariableMap.find (Variable.find (name,i)) valuation);*)
+	
+      done;
+      Printf.printf "%s = %d\n" name !value
+    ) names
+    
+
+let initial_state aiger = 
+  valuation_of_list 
+    (List.fold_left 
+       (fun accu name -> 
+	 let literals = Aiger.name_to_literals aiger name in
+	 let variables = 
+	   Array.mapi 
+	     (fun i lit -> 
+	       let v = Variable.find (name,i) 
+	       in (v,false)
+	     ) literals
+	 in List.rev_append (Array.to_list variables) accu
+       ) [] (List.rev_append (Aiger.latches aiger) (Aiger.outputs aiger))
+    )
+
+
+
+
+end

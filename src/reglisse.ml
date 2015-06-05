@@ -138,7 +138,7 @@ let safety_synthesis aiger inputs outputs =
   in*)
   let unsafe = AigerBdd.Variable.to_bdd (AigerBdd.Variable.find (AigerBdd.of_aiger_symbol ("never_accept",Some 0))) in
 
-  let aigerBdd = AigerBdd.of_aiger aiger in
+  let aigerBdd = AigerBdd.Circuit.of_aiger aiger in
   let losing = Attractor.trap aigerBdd contr uncontr unsafe in
   let winning = Region.negation losing in
 
@@ -273,7 +273,7 @@ let main =
 	List.fold_left (fun (accu,i) x -> 
 	  let prefix = "never_"^string_of_int i in
 	  let aiger = reglisse_to_aiger ~prefix x in
-	  let aigerBdd = AigerBdd.of_aiger aiger in
+	  let aigerBdd = AigerBdd.Circuit.of_aiger aiger in
 	  let unsafe = AigerBdd.Variable.to_bdd (AigerBdd.Variable.find (AigerBdd.of_aiger_symbol (prefix^"_accept",Some 0))) in 
 	  (* be carreful here "never" gets an integer added *)
 	  let contr,uncontr = control aiger x.inputs x.outputs in

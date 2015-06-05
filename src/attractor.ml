@@ -25,8 +25,8 @@ let read_from_file file =
   of_aiger aiger
 
 let rename_substitute_restrict unsafe aiger =
-  let renamed = Cudd.bddSwapVariables (Region.latch_configuration unsafe) (AigerBdd.array_variables aiger) (AigerBdd.array_next_variables aiger) in
-  let substitued = Cudd.bddVectorCompose renamed (AigerBdd.composition_vector aiger) in
+  let renamed = AigerBdd.Circuit.rename_configuration (Region.latch_configuration unsafe) (AigerBdd.Circuit.array_variables aiger) (AigerBdd.Circuit.array_next_variables aiger) in
+  let substitued = Cudd.bddVectorCompose renamed (AigerBdd.Circuit.composition_vector aiger) in
   Cudd.bddOr substitued (Region.latch_input_configuration unsafe)
 
 let uncontrollable_predecessors_with_restriction unsafe aiger controllable_cube uncontrollable_cube weak restriction =
@@ -63,11 +63,11 @@ let attractor aiger contr uncontr ?(weak=false) safe =
   attractor_with_restriction aiger contr uncontr ~weak (Region.of_bdds safe (Cudd.bddFalse())) (Region.tt())
 
 let strategy game region =
-  Cudd.bddVectorCompose (Cudd.bddSwapVariables
+  Cudd.bddVectorCompose (AigerBdd.Circuit.rename_configuration
 			   (Region.latch_configuration region)
-			   (AigerBdd.array_variables game) 
-			   (AigerBdd.array_next_variables game))
-			(AigerBdd.composition_vector game)
+			   (AigerBdd.Circuit.array_variables game) 
+			   (AigerBdd.Circuit.array_next_variables game))
+			(AigerBdd.Circuit.composition_vector game)
 
 
 (** Returns an associative list of controllable input and BDD *)
@@ -135,7 +135,7 @@ let input_output_from_bdd aiger input bdd =
   let map = AigerBdd.map_of_aiger aiger in
   let input_lit = AigerBdd.VariableMap.find input map in
   let sym = Aiger.lit2symbol aiger input_lit in
-  let aiger,gate = AigerBdd.add_bdd_to_aiger aiger bdd map in
+  let aiger,gate = AigerBdd.add_bdd_to_aiger aiger AigerBdd.VariableMap.empty bdd in
   let aiger,gate = input2gate aiger input_lit gate in
   Aiger.add_output aiger gate sym
 
@@ -162,8 +162,8 @@ let test aiger =
 
   AigerBdd.init aiger;
   let unsafe = List.fold_left Cudd.bddOr (Cudd.bddFalse()) (List.map bdd_of_lit aiger.Aiger.outputs) in
-  let initial = AigerBdd.bdd_of_valuation (AigerBdd.initial_state aiger) in
-  let precomputation = AigerBdd.of_aiger aiger in   
+  let initial = AigerBdd.bdd_of_valuation (AigerBdd.Circuit.initial_state aiger) in
+  let precomputation = AigerBdd.Circuit.of_aiger aiger in   
   let trap_set = trap precomputation contrv uncontrv ~weak:false unsafe in
   let trap_set_weak = trap precomputation contrv uncontrv ~weak:true unsafe in
   let initial_losing = Cudd.bddRestrict (Region.latch_configuration trap_set) initial in
