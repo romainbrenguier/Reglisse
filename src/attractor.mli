@@ -27,6 +27,10 @@ val trap_with_restriction : AigerBdd.t -> AigerBdd.variable list -> AigerBdd.var
 (** Construct a BDD representing a winning strategy *)
 val strategy : AigerBdd.t -> Region.t -> Cudd.bdd
 
+
+(** Takes a BDD representing the winning strategy and the controllable and uncontrollable inputs and returns individual BDDs to control the controllable inputs *)
+val strategy_to_bdds : Cudd.bdd -> AigerBdd.variable list -> AigerBdd.variable list -> (AigerBdd.variable * Cudd.bdd) list
+
 (** Takes the original aiger file, a BDD representing the winning strategy and the controllable and uncontrollable inputs *)
 val strategy_to_aiger : Aiger.t -> Cudd.bdd -> AigerBdd.variable list -> AigerBdd.variable list -> Aiger.t
 

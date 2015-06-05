@@ -83,3 +83,6 @@ val rename_configuration : Cudd.bdd -> Variable.t array -> Variable.t array -> C
 val print_valuation : Aiger.t -> string list -> bool VariableMap.t -> unit
 
 val initial_state : Aiger.t -> bool VariableMap.t
+
+(** Reorder the gates of an aiger file so that the index on the left of a gate is always greater than those on the right *)
+val reorder_aiger : Aiger.t -> Aiger.t

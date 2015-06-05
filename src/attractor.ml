@@ -24,8 +24,6 @@ let read_from_file file =
   let aiger = Aiger.read_from_file file in
   of_aiger aiger
 
-
-
 let rename_substitute_restrict unsafe aiger =
   let renamed = Cudd.bddSwapVariables (Region.latch_configuration unsafe) (AigerBdd.array_variables aiger) (AigerBdd.array_next_variables aiger) in
   let substitued = Cudd.bddVectorCompose renamed (AigerBdd.composition_vector aiger) in
@@ -72,113 +70,14 @@ let strategy game region =
 			(AigerBdd.composition_vector game)
 
 
-
-let join_output_input aiger ~output ~input =
-  let map_inputs = Hashtbl.create 100 in
-  let map_latches = Hashtbl.create 100 in
-
-  let aig = 
-    List.fold_left
-      (fun accu i ->
-	if i = input then accu
-	else
-	  let aig,v = Aiger.new_var accu in
-	  let lit = Aiger.var2lit v in
-	  Hashtbl.add map_inputs i lit;
-	  Aiger.add_input aig lit (Aiger.lit2symbol aiger i)
-      ) Aiger.empty aiger.Aiger.inputs
-  in
-
-  let aig = 
-    List.fold_left
-      (fun accu (l,_) ->
-	let aig,v = Aiger.new_var accu in
-	let lit = Aiger.var2lit v in
-	Hashtbl.add map_latches l lit;
-	aig
-      ) aig aiger.Aiger.latches
-  in
-
-  let cache = Hashtbl.create 100 in
-
-  (* start by adding gates are necessary to compute the output *)
-  let rec aux aig gate =
-    (* Printf.printf "aux aig %d\n" (Aiger.lit2int gate);*)
-    if Hashtbl.mem cache (Aiger.strip gate)
-    then if Aiger.sign gate 
-      then aig, Aiger.aiger_not (Hashtbl.find cache (Aiger.strip gate))
-      else aig, Hashtbl.find cache gate
-    else
-      let aig,lit =
-	match Aiger.lit2tag aiger (Aiger.strip gate) with
-	| Aiger.Constant true -> aig, Aiger.aiger_true
-	| Aiger.Constant false -> aig, Aiger.aiger_false
-	| Aiger.Input l -> aig, (try Hashtbl.find map_inputs l with
-	  Not_found -> failwith "in Reglisse.join_input_output: the output depends on the input")
-	| Aiger.Latch (l,_) -> aig,Hashtbl.find map_latches l
-	| Aiger.And (g,l,r) -> 
-	  let aig1,lit1 = aux aig l in
-	  let aig2,lit2 = aux aig1 r in
-	  let aig3,v = Aiger.new_var aig2 in
-	  let lit = Aiger.var2lit v in
-	  let aig = Aiger.add_and aig3 lit lit1 lit2 in
-	  aig, lit
-	| _ -> failwith "in Attractor.join_output_input: the output should not depend on another output"
-      in Hashtbl.add cache (Aiger.strip gate) lit;
-      if Aiger.sign gate then aig, Aiger.aiger_not lit else aig, lit
-  in 
-
-  let aig,lit = aux aig output in
-
-  (* Printf.printf "adding to map_inputs : %d -> %d\n" (Aiger.lit2int input) (Aiger.lit2int lit);*)
-  Hashtbl.add map_inputs input lit;
-  
-  let aig = 
-    List.fold_left 
-      (fun accu (l,u) ->
-	let aig,lit = aux accu u in
-	Aiger.add_latch aig (Hashtbl.find map_latches l) lit (Aiger.lit2symbol aiger l)
-      ) aig aiger.Aiger.latches 
-  in
-  let aig = 
-    List.fold_left 
-      (fun accu o ->
-	if o = output then 
-	  Aiger.add_output accu lit (Aiger.lit2symbol aiger o)
-	else
-	  let aig,lit = aux accu o in
-	  (*Printf.printf "adding output %s\n" (Aiger.Symbol.to_string (Aiger.lit2symbol aiger o));*)
-	  Aiger.add_output aig lit (Aiger.lit2symbol aiger o)
-      ) aig aiger.Aiger.outputs
-  in
-
-  aig
-
-
-
-let strategy_to_aiger aiger strategy controllables uncontrollables= 
-  let var_map = AigerBdd.map_of_aiger aiger in
-
-  let rec aux (bdd,circuit) contr = 
-    (*Printf.printf "controlling variable: %d\n" (AigerBdd.Variable.to_int contr);*)
+(** Returns an associative list of controllable input and BDD *)
+let strategy_to_bdds strategy controllables uncontrollables = 
+  let rec aux (bdd,accu) contr = 
     let bdd_inp = AigerBdd.Variable.to_bdd contr in 
-    (* val is true when there we cannot put the variable contr to false *)
     let val_inp = 
       Cudd.bddNot (Cudd.bddExistAbstract (Cudd.bddAnd (Cudd.bddNot bdd_inp) bdd) (AigerBdd.Variable.make_cube [contr])) in
 
-    if !Common.display_debug
-    then Cudd.dumpDot ("strategy_output_"^string_of_int (AigerBdd.Variable.to_int contr)^".dot") val_inp;
-
     try
-      let circuit, output = AigerBdd.add_bdd_to_aiger circuit val_inp var_map in
-      
-      let output_symbol = 
-	let (s,i) = 
-	  Aiger.lit2symbol aiger (AigerBdd.VariableMap.find contr var_map)
-	in ("_tmp_"^s,i)
-      in
-      let circuit = Aiger.add_output circuit output output_symbol in
-      
       let bdd =  Cudd.bddExistAbstract 
 		   (Cudd.bddAnd bdd (Cudd.bddOr 
 				       (Cudd.bddAnd val_inp bdd_inp)
@@ -186,42 +85,71 @@ let strategy_to_aiger aiger strategy controllables uncontrollables=
 		   (AigerBdd.Variable.make_cube [contr])
 		   
       in 
-      if !Common.display_debug
-      then Cudd.dumpDot ("strategy_rest_"^string_of_int (AigerBdd.Variable.to_int contr)^".dot") bdd;
-      bdd, circuit
+      bdd, ((contr,val_inp) :: accu)
     with Not_found -> 
       prerr_endline ("warning: no symbol found for output symbol "^(AigerBdd.Variable.to_string contr));
-      bdd, circuit
+      bdd, accu
   in
 
-  let bdd,circuit = List.fold_left aux (strategy,aiger) controllables in
+  let bdd,assoc = List.fold_left aux (strategy,[]) controllables in
+  assoc
 
-  let renaming = 
+
+let substitute src dst i = 
+  if Aiger.strip i = src 
+  then 
+    if Aiger.sign i then Aiger.aiger_not dst else dst
+  else i
+
+(* remove an input and replace it by the given gate *)
+let input2gate aiger input gate =
+  let sub = substitute input gate in
+  let renumber x = if Aiger.lit2int x > Aiger.lit2int input + 1 then Aiger.int2lit (Aiger.lit2int x - 2) else x in
+  let inputs = List.filter (fun x -> x <> input) aiger.Aiger.inputs in
+  let inputs = List.map renumber inputs in
+  let sym = Aiger.lit2symbol aiger input in
+  let abstract = Aiger.LitMap.remove input aiger.Aiger.abstract in
+  let abstract = Aiger.LitMap.fold (fun k i accu -> Aiger.LitMap.add (renumber k) i accu) abstract Aiger.LitMap.empty in
+  let symbols = Aiger.SymbolMap.remove sym aiger.Aiger.symbols in
+  let symbols = Aiger.SymbolMap.map renumber symbols in
+  let latches = List.map (fun (l,r) -> (renumber l, renumber (sub r))) aiger.Aiger.latches in
+  let ands = List.map 
+	       (fun (lhr,rhs0,rhs1) ->  (renumber lhr,renumber (sub rhs0),renumber (sub rhs1))
+	       ) aiger.Aiger.ands
+  in
+  let outputs = List.map renumber aiger.Aiger.outputs in
+  {aiger with 
+    Aiger.num_inputs = aiger.Aiger.num_inputs - 1 ; 
+    Aiger.inputs = inputs ; 
+    Aiger.latches = latches ; 
+    Aiger.ands = ands;
+    Aiger.symbols = symbols;
+    Aiger.abstract = abstract;
+    Aiger.outputs = outputs;
+  },renumber gate
+
+(* val input_output_from_bdd : Aiger.t -> Aiger.variable -> Cudd.bdd -> Aiger.t 
+Replace the input by the BDD, and also put it as an output
+*)
+let input_output_from_bdd aiger input bdd =
+  let map = AigerBdd.map_of_aiger aiger in
+  let input_lit = AigerBdd.VariableMap.find input map in
+  let sym = Aiger.lit2symbol aiger input_lit in
+  let aiger,gate = AigerBdd.add_bdd_to_aiger aiger bdd map in
+  let aiger,gate = input2gate aiger input_lit gate in
+  Aiger.add_output aiger gate sym
+
+
+let strategy_to_aiger aiger strategy controllables uncontrollables = 
+  let strategy_bdds = strategy_to_bdds strategy controllables uncontrollables in
+  let circuit = 
     List.fold_left
-      (fun accu contr -> 
-       try
-	 Printf.printf "controlling variable: %d\n" (AigerBdd.Variable.to_int contr);
-	 let o = AigerBdd.VariableMap.find contr var_map in
-	 let (sym_s,sym_i) = Aiger.lit2symbol aiger o in
-	 (("_tmp_"^sym_s,sym_i),(sym_s,sym_i)) :: accu
-       with Not_found -> 
-	 prerr_endline ("warning: no symbol found for output symbol "^(AigerBdd.Variable.to_string contr));
-	 accu
-      ) [] controllables
+      (fun aiger (contr,bdd) -> 
+       input_output_from_bdd aiger contr bdd 
+      ) aiger strategy_bdds 
   in
+  AigerBdd.reorder_aiger circuit
 
-  let aig = 
-    List.fold_left 
-      (fun accu (output,input) -> 
-	(*Aiger.write accu stdout;
-	Printf.printf "joining %s -> %s\n" (Aiger.Symbol.to_string output) (Aiger.Symbol.to_string input);*)
-	join_output_input accu ~output:(Aiger.symbol2lit accu output) ~input:(Aiger.symbol2lit accu input)
-      ) circuit renaming
-  in
-
-  (*Aiger.write aig stdout;*)
-  Aiger.rename aig renaming
-  
 
 let test aiger = 
   let bdd_of_lit lit = 

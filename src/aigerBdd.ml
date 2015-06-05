@@ -421,3 +421,64 @@ let initial_state aiger =
 	 in List.rev_append (Array.to_list variables) accu
        ) [] (List.rev_append (Aiger.latches aiger) (Aiger.outputs aiger))
     )
+
+
+
+let reorder_aiger aiger =
+  print_endline "Reordering:";
+  Aiger.write aiger stdout;
+  let ands = Hashtbl.create aiger.Aiger.num_ands in
+  let mapping = Hashtbl.create aiger.Aiger.num_ands in
+  List.iter (fun (a,b,c) -> Hashtbl.add ands a (a,b,c)) aiger.Aiger.ands;
+  Hashtbl.add mapping Aiger.aiger_true Aiger.aiger_true;
+  Hashtbl.add mapping Aiger.aiger_false Aiger.aiger_false;
+  List.iter (fun a -> Hashtbl.add mapping a a) aiger.Aiger.inputs;
+  List.iter (fun (a,_) -> Hashtbl.add mapping a a) aiger.Aiger.latches;
+
+  let find_mapping r = 
+    let m = Hashtbl.find mapping (Aiger.strip r) in
+    if Aiger.sign r then Aiger.aiger_not m else m
+  in
+
+  let rec explore gates max_lit a = 
+    try gates, Hashtbl.find mapping a, max_lit
+    with Not_found ->
+      if  Aiger.lit2int a < 2 * (aiger.Aiger.num_latches + aiger.Aiger.num_inputs + 1)
+      then gates, a, max_lit
+      else
+	let (lhs,rhs0,rhs1) = Hashtbl.find ands a in
+	let gates,striped0,max_lit = explore gates max_lit (Aiger.strip rhs0) in 
+	let new_rhs0 = if Aiger.sign rhs0 then Aiger.aiger_not striped0 else striped0 in
+	let gates,striped1,max_lit = explore gates max_lit (Aiger.strip rhs1) in 
+	let new_rhs1 = if Aiger.sign rhs1 then Aiger.aiger_not striped1 else striped1 in
+	let gate = Aiger.int2lit (max_lit + 2) in
+	Hashtbl.add mapping lhs gate;
+	(gate,new_rhs0, new_rhs1)::gates, gate,  max_lit+2
+  in
+
+  let gates,_ = 
+    List.fold_left
+      (fun (accu,max_lit) (a,_,_) -> 
+       let (a,_,m) = explore accu max_lit a in a,m
+      ) ([],2 * (aiger.Aiger.num_latches +  aiger.Aiger.num_inputs)) aiger.Aiger.ands
+  in
+
+  let latches = 
+    List.map
+      (fun (l,r) -> l, find_mapping r
+      ) aiger.Aiger.latches 
+  in
+
+  let outputs =  List.map find_mapping aiger.Aiger.outputs  in
+  let symbols = Aiger.SymbolMap.map find_mapping aiger.Aiger.symbols in
+  
+  let abstract = 
+    Aiger.LitMap.fold
+      (fun l s accu -> 
+       try Aiger.LitMap.add (find_mapping l) s accu
+       with Not_found -> 
+	 Printf.eprintf "Warning in AigerBdd.reorder_aiger: literal %d not found\n" (Aiger.lit2int l);
+	 accu
+      )  aiger.Aiger.abstract Aiger.LitMap.empty in
+
+  {aiger with ands = List.rev gates; latches = latches; outputs=outputs; symbols=symbols; abstract=abstract}
