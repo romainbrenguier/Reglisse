@@ -6,7 +6,7 @@ module Mux
    output mux
    ); 
 
-   never "{true}* {sel & !(a <-> mux)}";
-   never "{true}* {(!sel) & !(b <-> mux)}"; 
+   never "{sel & !(b <-> mux)}";
+   never "{(!sel) & !(a <-> mux)}"; 
       
 endmodule

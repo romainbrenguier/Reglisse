@@ -72,10 +72,12 @@ let strategy game region =
 
 (** Returns an associative list of controllable input and BDD *)
 let strategy_to_bdds strategy controllables uncontrollables = 
+  let cnt = ref 0 in
   let rec aux (bdd,accu) contr = 
+    incr cnt;
     let bdd_inp = AigerBdd.Variable.to_bdd contr in 
     let val_inp = 
-      Cudd.bddNot (Cudd.bddExistAbstract (Cudd.bddAnd (Cudd.bddNot bdd_inp) bdd) (AigerBdd.Variable.make_cube [contr])) in
+      Cudd.bddNot (Cudd.bddExistAbstract (Cudd.bddAnd (Cudd.bddNot bdd_inp) bdd) (AigerBdd.Variable.make_cube controllables)) in
 
     try
       let bdd =  Cudd.bddExistAbstract 
@@ -85,6 +87,10 @@ let strategy_to_bdds strategy controllables uncontrollables =
 		   (AigerBdd.Variable.make_cube [contr])
 		   
       in 
+      (*List.iter (fun x -> Printf.printf "controllable : %d\n" (AigerBdd.Variable.to_int x)) contr;
+      Printf.printf "writing strategy%d.dot ----------\n" (!cnt);
+      Cudd.dumpDot ("strategy"^ string_of_int !cnt ^".dot") bdd;*)
+
       bdd, ((contr,val_inp) :: accu)
     with Not_found -> 
       prerr_endline ("warning: no symbol found for output symbol "^(AigerBdd.Variable.to_string contr));

@@ -1,0 +1,13 @@
+module Arbitrer
+  (
+   input req1,
+   input req2,
+   output grant1,
+   output grant2
+   );
+
+   never "{req1} ({! grant1} 3)";
+   never "{req2} ({! grant2} 3)";
+   never "{grant1 & grant2}";
+   
+endmodule

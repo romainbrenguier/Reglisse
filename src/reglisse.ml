@@ -1,5 +1,7 @@
 (* Transforms regular expression specifications in HDL (Verilog or AIGER) *)
 
+let output_game = ref true
+
 type t =
   { 
     module_name: string;
@@ -267,6 +269,8 @@ let main =
     match specs with 
     | [spec] -> 
       let aiger = reglisse_to_aiger spec in
+      if !output_game
+      then (print_endline ("writing "^file^"_game.aag"); Aiger.write_to_file aiger (file^"_game.aag"));
       safety_synthesis aiger spec.inputs spec.outputs
     | spec_list ->
       let aigers,_ = 

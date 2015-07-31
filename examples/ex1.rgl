@@ -4,7 +4,7 @@ module Test
    output react
    ); 
 
-   never "{true}* {push} {!react}";
-   never "{true}* {!push} {react}"; 
+   never "{push} {!react}";
+   never "{!push} {react}"; 
       
 endmodule

@@ -62,7 +62,7 @@ let map_of_aiger aiger =
     List.fold_left
       (fun m inp -> 
        let sym = Aiger.lit2symbol aiger inp in
-       (* Printf.printf "adding to map input %d (%s)\n" (Aiger.lit2int inp) (Aiger.Symbol.to_string sym); *)
+       (*Printf.printf "adding to map input %d (%s) -> %d\n" (Aiger.lit2int inp) (Aiger.Symbol.to_string sym) (Variable.find (of_aiger_symbol sym)); *)
 
        VariableMap.add (Variable.find (of_aiger_symbol sym)) inp m
       ) VariableMap.empty aiger.Aiger.inputs
@@ -70,7 +70,7 @@ let map_of_aiger aiger =
   List.fold_left
     (fun m (l,_) -> 
      let sym = Aiger.lit2symbol aiger l in
-     (* Printf.printf "adding to map latch %d (%s)\n" (Aiger.lit2int l) (Aiger.Symbol.to_string sym);*)
+     (*Printf.printf "adding to map latch %d (%s) -> %d\n" (Aiger.lit2int l) (Aiger.Symbol.to_string sym) (Variable.find (of_aiger_symbol sym));*)
      VariableMap.add (Variable.find (of_aiger_symbol sym)) l m
     ) m aiger.Aiger.latches
 
