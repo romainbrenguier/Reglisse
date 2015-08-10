@@ -17,11 +17,10 @@ let losing p controllables uncontrollables unsafe =
   trap p (List.rev_append controllables uncontrollables) [] unsafe
 
 let value p controllables uncontrollables ?(weak=false) unsafe = 
-  print_endline "controllables";
-  List.iter print_endline (List.map AigerBdd.Variable.to_string controllables);
+  (*List.iter print_endline (List.map AigerBdd.Variable.to_string controllables);*)
   let winning_region = winning p controllables uncontrollables ~weak unsafe in
-  print_endline "writing winning1.dot";
-  Cudd.dumpDot "winning1.dot" (Region.latch_configuration winning_region);
+  (*print_endline "writing winning1.dot";
+  Cudd.dumpDot "winning1.dot" (Region.latch_configuration winning_region);*)
   let losing_region = losing p controllables uncontrollables unsafe in
   let not_winning_region = Region.negation winning_region in
   let not_losing_region = Region.negation losing_region in

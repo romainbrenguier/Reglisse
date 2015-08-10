@@ -132,6 +132,7 @@ let input2gate aiger input gate =
     Aiger.symbols = symbols;
     Aiger.abstract = abstract;
     Aiger.outputs = outputs;
+    Aiger.maxvar = aiger.Aiger.maxvar - 1;
   },renumber gate
 
 (* val input_output_from_bdd : Aiger.t -> Aiger.variable -> Cudd.bdd -> Aiger.t 

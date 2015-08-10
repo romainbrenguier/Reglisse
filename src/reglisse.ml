@@ -165,21 +165,24 @@ let safety_synthesis aiger inputs outputs =
 
 
 let assume_admissible_synthesis aigers =
-  let product_aig,product,winning = Admissibility.compositional_synthesis aigers
+  let product_aig,product,winning = 
+    Admissibility.compositional_synthesis aigers
   in
+
   print_endline "writing product.aag";
   Aiger.write_to_file product_aig "product.aag";
 
-  let strategy = Attractor.strategy product winning in
   let initial_states = List.map (fun (a,_,_,_,_) -> Region.initial_state a) aigers in
   let initial = List.fold_left Cudd.bddAnd (Cudd.bddTrue()) initial_states in
   let initial_winning = Cudd.bddRestrict (Region.latch_configuration winning) initial in
 
+(*
   print_endline "writing winning.dot";
   Cudd.dumpDot "winning.dot" (Region.latch_configuration winning);
   print_endline "writing winning_actions.dot";
   Cudd.dumpDot "winning_actions.dot" (Region.latch_input_configuration winning);
-  
+ *)
+
   if Cudd.value initial_winning = 1 
   then print_endline "realizable"
   else if Cudd.value initial_winning = 0
@@ -192,6 +195,7 @@ let assume_admissible_synthesis aigers =
      Cudd.dumpDot "winning.dot" (Region.latch_configuration winning);
     );
 
+  let strategy = Attractor.strategy product winning in
 
   let contr = 
     List.fold_left
@@ -209,9 +213,7 @@ let assume_admissible_synthesis aigers =
       ) contr
   in
 
-  print_endline "aig strategy";
   let aig_strategy = Attractor.strategy_to_aiger product_aig strategy (AigerBdd.VariableSet.elements contr) (AigerBdd.VariableSet.elements uncontr) in
-  print_endline "computed";
   aig_strategy
 
     

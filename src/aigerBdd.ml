@@ -361,8 +361,14 @@ let reorder_aiger aiger =
   List.iter (fun (a,b,c) -> Hashtbl.add ands a (a,b,c)) aiger.Aiger.ands;
   Hashtbl.add mapping Aiger.aiger_true Aiger.aiger_true;
   Hashtbl.add mapping Aiger.aiger_false Aiger.aiger_false;
-  List.iter (fun a -> Hashtbl.add mapping a a) aiger.Aiger.inputs;
-  List.iter (fun (a,_) -> Hashtbl.add mapping a a) aiger.Aiger.latches;
+
+  let max_lit = 0 in
+  let max_lit = 
+    List.fold_left (fun ml a -> Hashtbl.add mapping a (Aiger.int2lit (ml+2)); ml + 2) max_lit aiger.Aiger.inputs 
+  in
+  let max_lit = 
+    List.fold_left (fun ml (a,_) -> Hashtbl.add mapping a (Aiger.int2lit (ml+2)); ml + 2) max_lit aiger.Aiger.latches
+  in
 
   let find_mapping r = 
     let m = Hashtbl.find mapping (Aiger.strip r) in
@@ -385,16 +391,19 @@ let reorder_aiger aiger =
 	(gate,new_rhs0, new_rhs1)::gates, gate,  max_lit+2
   in
 
-  let gates,_ = 
+  let gates,max_lit = 
     List.fold_left
       (fun (accu,max_lit) (a,_,_) -> 
        let (a,_,m) = explore accu max_lit a in a,m
-      ) ([],2 * (aiger.Aiger.num_latches +  aiger.Aiger.num_inputs)) aiger.Aiger.ands
+      ) (* ([],2 * (aiger.Aiger.num_latches +  aiger.Aiger.num_inputs)) aiger.Aiger.ands *)
+      ([],max_lit) aiger.Aiger.ands 
   in
+
+  let inputs = List.map find_mapping aiger.Aiger.inputs in
 
   let latches = 
     List.map
-      (fun (l,r) -> l, find_mapping r
+      (fun (l,r) -> find_mapping l, find_mapping r
       ) aiger.Aiger.latches 
   in
 
@@ -410,7 +419,17 @@ let reorder_aiger aiger =
 	 accu
       )  aiger.Aiger.abstract Aiger.LitMap.empty in
 
-  {aiger with ands = List.rev gates; latches = latches; outputs=outputs; symbols=symbols; abstract=abstract}
+  {aiger with 
+    inputs = inputs; 
+    ands = List.rev gates; 
+    latches = latches; outputs=outputs; 
+    num_ands = List.length gates;
+    num_latches = List.length latches;
+    num_outputs =  List.length outputs;
+    num_inputs =  List.length inputs;
+    symbols=symbols; abstract=abstract; maxvar=max_lit/2}
+
+
 
 module Circuit = 
   struct
