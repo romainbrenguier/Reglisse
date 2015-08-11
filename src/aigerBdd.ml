@@ -49,6 +49,7 @@ struct
   let of_lit aiger lit = 
     find (of_aiger_symbol (Aiger.lit2symbol aiger lit))
 
+  let max_var () = !last_variable
 end
 
 type variable = Variable.t
@@ -460,7 +461,8 @@ let of_aiger aiger =
   let array_variables = Array.of_list (VariableSet.elements variables) in
   let array_next_variables = Array.of_list (VariableSet.elements next_variables) in
   let composition_vector = 
-    Array.init (aiger.Aiger.maxvar * 2 + 2) (* should it really be this value ? *)
+    Array.init (* (aiger.Aiger.maxvar * 2 + 2) (* should it really be this value ? *)*)
+      (Variable.max_var ())
 	       (fun i -> 
 		try Hashtbl.find updates (i-1)
 		with Not_found -> Cudd.bddTrue())

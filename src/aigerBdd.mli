@@ -22,6 +22,7 @@ sig
   val to_int : t -> int
   val to_string : t -> string
   val of_lit : Aiger.t -> Aiger.lit -> t 
+  val max_var : unit -> int
 end
 
 type variable = Variable.t

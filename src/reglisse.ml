@@ -1,6 +1,7 @@
 (* Transforms regular expression specifications in HDL (Verilog or AIGER) *)
 
 let output_game = ref true
+let output_product = ref true
 
 type t =
   { 
@@ -38,7 +39,8 @@ let parse stream =
 | [< 'Genlex.Kwd "never" ; 'Genlex.String regexp; 'Genlex.Kwd ";" >] ->
   parse_conditions (add_never m ("{true} * ("^regexp^")")) stream
 | [< 'Genlex.Kwd "eventually" ; 'Genlex.String regexp; 'Genlex.Kwd ";" >] ->
-  parse_conditions (add_eventually m regexp) stream
+   failwith "eventually not supported";
+   parse_conditions (add_eventually m regexp) stream
 | [< 'Genlex.Kwd "if" ; 'Genlex.String regexp; 'Genlex.Kwd "then"; 'Genlex.String seq; 'Genlex.Kwd ";" >] ->
   parse_conditions (add_if_then m regexp seq) stream
 | [< 'Genlex.Kwd "only"; 'Genlex.Kwd "if" ; 'Genlex.String seq; 'Genlex.Kwd "then"; 'Genlex.String regexp; 'Genlex.Kwd ";" >] ->
@@ -164,13 +166,38 @@ let safety_synthesis aiger inputs outputs =
   aig_strategy
 
 
+let merge_outputs aiger = 
+  match aiger.Aiger.outputs with 
+  | [] -> failwith "in Reglisse.merge_outputs: no outputs"
+  | [hd] -> aiger
+  | hd :: tl ->
+     let aig = List.fold_left (fun aig x -> Aiger.hide aig (Aiger.lit2symbol aig x)) aiger (hd :: tl) in
+     let aig, no_error =
+       List.fold_left 
+	 (fun (aig,gate) out -> 
+	  let aig, v = Aiger.new_var aig in
+	  let aig = Aiger.add_and aig (Aiger.var2lit v) gate (Aiger.aiger_not out) in
+	  aig, (Aiger.var2lit v)
+	 ) (aig,Aiger.aiger_not hd) tl
+     in 
+     Aiger.add_output aig (Aiger.aiger_not no_error) ("error",Some 0) 
+
+let make_controllable aiger controllables =
+  List.fold_left 
+    (fun aig input -> 
+     if AigerBdd.VariableSet.mem (AigerBdd.Variable.of_lit aiger input) controllables
+     then 
+       let syms,symo = Aiger.lit2symbol aiger input in
+       Aiger.rename aig [(syms,symo),("controllable_"^syms,symo)]
+     else aig
+    ) aiger aiger.Aiger.inputs
+  
 let assume_admissible_synthesis aigers =
-  let product_aig,product,winning = 
+  print_endline "assume admissible synthesis";
+  let product_aig,product,controllables,winning = 
     Admissibility.compositional_synthesis aigers
   in
-
-  print_endline "writing product.aag";
-  Aiger.write_to_file product_aig "product.aag";
+ 
 
   let initial_states = List.map (fun (a,_,_,_,_) -> Region.initial_state a) aigers in
   let initial = List.fold_left Cudd.bddAnd (Cudd.bddTrue()) initial_states in
@@ -194,6 +221,18 @@ let assume_admissible_synthesis aigers =
      Cudd.dumpDot "initial_state.dot" initial;
      Cudd.dumpDot "winning.dot" (Region.latch_configuration winning);
     );
+
+  Timer.display();
+
+  if !output_product
+  then (
+    print_endline "writing product.aag";
+    let aig = merge_outputs product_aig in
+    let aig = make_controllable aig controllables in
+    Aiger.write_to_file aig "product.aag";
+  );
+
+  Timer.display();
 
   let strategy = Attractor.strategy product winning in
 

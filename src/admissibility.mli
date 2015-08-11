@@ -25,7 +25,7 @@ val strategies : AigerBdd.Circuit.t -> (value -> Region.t) -> Region.t
 We should assume that player 2 choses its inputs before player 1. *)
 val assume_admissible : AigerBdd.Circuit.t -> AigerBdd.Variable.t list -> AigerBdd.Variable.t list -> Cudd.bdd -> Cudd.bdd -> Region.t
 
-val compositional_synthesis : (Aiger.t * AigerBdd.Circuit.t * AigerBdd.Variable.t list * AigerBdd.Variable.t list * Cudd.bdd) list -> Aiger.t * AigerBdd.Circuit.t * Region.t
+val compositional_synthesis : (Aiger.t * AigerBdd.Circuit.t * AigerBdd.Variable.t list * AigerBdd.Variable.t list * Cudd.bdd) list -> Aiger.t * AigerBdd.Circuit.t * AigerBdd.VariableSet.t * Region.t
 
 (** Given a strategy, computes the set of unsafe states.
     The function checks that the strategy is safe but not that it is a correct strategy (ie: at least one action is possible in each state)

@@ -17,7 +17,10 @@ let losing p controllables uncontrollables unsafe =
   trap p (List.rev_append controllables uncontrollables) [] unsafe
 
 let value p controllables uncontrollables ?(weak=false) unsafe = 
-  (*List.iter print_endline (List.map AigerBdd.Variable.to_string controllables);*)
+  (*print_endline "controllables:";
+  List.iter print_endline (List.map AigerBdd.Variable.to_string controllables);
+  print_endline "uncontrollables:";
+  List.iter print_endline (List.map AigerBdd.Variable.to_string uncontrollables);*)
   let winning_region = winning p controllables uncontrollables ~weak unsafe in
   (*print_endline "writing winning1.dot";
   Cudd.dumpDot "winning1.dot" (Region.latch_configuration winning_region);*)
@@ -66,8 +69,12 @@ let correct_strategy p strat controllables uncontrollables =
   let uncontrollable_cube = AigerBdd.Variable.make_cube uncontrollables in
   let variables_cube = AigerBdd.Variable.make_cube (AigerBdd.VariableSet.elements (AigerBdd.Circuit.variables p)) in
   let exist_quantified = Cudd.bddExistAbstract strat controllable_cube in
+  print_endline "univ quantification over uncontrollable";
   let univ_quantified = Cudd.bddUnivAbstract exist_quantified uncontrollable_cube in
-  Cudd.bddUnivAbstract univ_quantified variables_cube
+  print_endline "univ quantification over variables";
+  let res = Cudd.bddUnivAbstract univ_quantified variables_cube in
+  print_endline "result";
+  res
 
 let check_strategies p strat controllables uncontrollables u =
   let controllable_cube = Cudd.make_cube (List.map Aiger.lit2int controllables) in
@@ -98,6 +105,7 @@ let assume_admissible game player1_inputs player2_inputs fail1 fail2 =
   Region.intersection w1 w2
 
 let compositional_synthesis game_list =
+
   let admissibles = 
     List.fold_left 
       (fun accu (a,g,c,u,err) ->
@@ -127,6 +135,13 @@ let compositional_synthesis game_list =
       ) AigerBdd.VariableSet.empty game_list
   in
 
+  let controllable_inputs =     
+    List.fold_left
+      (fun accu (_,_,c,u,_) -> add_list accu c
+      ) AigerBdd.VariableSet.empty game_list
+  in
+
+
   let _,winning =
     List.fold_left
       (fun (i,accu) (a,g,c,_,err) ->
@@ -141,4 +156,4 @@ let compositional_synthesis game_list =
        i+1, Region.intersection accu v
       ) (0,Region.tt()) game_list
   in
-  product,product_bdd,winning 
+  product,product_bdd,controllable_inputs,winning 

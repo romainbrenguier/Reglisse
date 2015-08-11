@@ -6,5 +6,6 @@
 <admissibility.*>: use_ocaml-aiger, use_ocaml-cudd
 <proposition.*> or <regularExpression.*> or <sequence.*>: use_ocaml-aiger, use_ocaml-cudd
 <verilog.*>: use_ocaml-aiger
-<reglisse.*> : pp(camlp4o), use_ocaml-aiger, use_ocaml-cudd
+<reglisse.*> : pp(camlp4o), use_ocaml-aiger, use_ocaml-cudd, use_unix
+<timer.*> : use_unix
 <simulation.*> : use_ocaml-aiger, use_ocaml-cudd

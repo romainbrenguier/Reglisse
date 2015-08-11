@@ -41,7 +41,6 @@ let uncontrollable_predecessors_with_restriction unsafe aiger controllable_cube 
     let exist_quantified = Cudd.bddExistAbstract (Cudd.bddAnd (Region.latch_input_configuration restriction) univ_quantified) uncontrollable_cube in
     Region.of_bdds exist_quantified univ_quantified
 
-
 let trap_with_restriction aiger controllables uncontrollables ?(weak=false) unsafe restriction =
   let controllable_cube = AigerBdd.Variable.make_cube controllables in
   let uncontrollable_cube = AigerBdd.Variable.make_cube uncontrollables in

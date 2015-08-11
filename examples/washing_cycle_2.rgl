@@ -1,0 +1,134 @@
+module Tank1
+  (
+   input  push1,
+   output fill1,
+   output empty1
+   );
+
+   if "{true} * {push1} {! fill1}" then "{fill1}";
+   never "{!push1} 2 {fill1}";
+   if "{true} * {fill1}" then " {!empty1}{empty1}";
+
+endmodule
+
+module Tank2
+  (
+   input  push2,
+   output fill2,
+   output empty2
+   );
+
+   if "{true} * {push2} {! fill2}" then "{fill2}";
+   never "{!push2} 2 {fill2}";
+   if "{true} * {fill2}" then " {!empty2}{empty2}";
+
+endmodule
+
+module Tank3
+  (
+   input  push3,
+   output fill3,
+   output empty3
+   );
+
+   if "{true} * {push3} {! fill3}" then "{fill3}";
+   never "{!push3} 2 {fill3}";
+   if "{true} * {fill3}" then " {!empty3}{empty3}";
+
+endmodule
+
+module Tank4
+  (
+   input  push4,
+   output fill4,
+   output empty4
+   );
+
+   if "{true} * {push4} {! fill4}" then "{fill4}";
+   never "{!push4} 2 {fill4}";
+   if "{true} * {fill4}" then " {!empty4}{empty4}";
+
+endmodule
+
+module Tank5
+  (
+   input  push5,
+   output fill5,
+   output empty5
+   );
+
+   if "{true} * {push5} {! fill5}" then "{fill5}";
+   never "{!push5} 2 {fill5}";
+   if "{true} * {fill5}" then " {!empty5}{empty5}";
+
+endmodule
+
+module Tank6
+  (
+   input  push6,
+   output fill6,
+   output empty6
+   );
+
+   if "{true} * {push6} {! fill6}" then "{fill6}";
+   never "{!push6} 2 {fill6}";
+   if "{true} * {fill6}" then " {!empty6}{empty6}";
+
+endmodule
+
+module Tank7
+  (
+   input  push7,
+   output fill7,
+   output empty7
+   );
+
+   if "{true} * {push7} {! fill7}" then "{fill7}";
+   never "{!push7} 2 {fill7}";
+   if "{true} * {fill7}" then " {!empty7}{empty7}";
+
+endmodule
+
+module Tank8
+  (
+   input  push8,
+   output fill8,
+   output empty8
+   );
+
+   if "{true} * {push8} {! fill8}" then "{fill8}";
+   never "{!push8} 2 {fill8}";
+   if "{true} * {fill8}" then " {!empty8}{empty8}";
+
+endmodule
+
+module Tank9
+  (
+   input  push9,
+   output fill9,
+   output empty9
+   );
+
+   if "{true} * {push9} {! fill9}" then "{fill9}";
+   never "{!push9} 2 {fill9}";
+   if "{true} * {fill9}" then " {!empty9}{empty9}";
+
+endmodule
+
+module Light
+ (
+  input  fill1,
+  input  fill2,
+  input  fill3,
+  input  fill4,
+  input  fill5,
+  input  fill6,
+  input  fill7,
+  input  fill8,
+  input  fill9,
+  output light
+  );
+
+   never "{ ! light <-> (fill1 | fill2 | fill3 | fill4 | fill5 | fill6 | fill7 | fill8 | fill9)}";
+
+endmodule

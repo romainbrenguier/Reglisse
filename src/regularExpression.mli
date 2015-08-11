@@ -36,8 +36,7 @@ val to_string : t -> string
 
 (** [to_aiger] and [regexp expr] convert a regular expression 
     into an AIG with an output called ACCEPT that is true after seeing 
-    an accepting state and a variable RESIDUAL that encodes
-    the current state.
+    an accepting state.
 *)
 val to_aiger : ?prefix:string -> t -> Aiger.t
 val regexp : string -> Aiger.t
