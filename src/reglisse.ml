@@ -27,7 +27,7 @@ let add_eventually m eventually = {m with eventually=eventually :: m.eventually}
 
 let lexer = Genlex.make_lexer
   ["module";"endmodule";"never";"enventually";
-   "only";"if";"then";"input";"output";
+   "only";"if";"then";"input";"output";"when";
    "(";")";",";";"]
 
 exception NoMoreModule
@@ -43,6 +43,8 @@ let parse stream =
    parse_conditions (add_eventually m regexp) stream
 | [< 'Genlex.Kwd "if" ; 'Genlex.String regexp; 'Genlex.Kwd "then"; 'Genlex.String seq; 'Genlex.Kwd ";" >] ->
   parse_conditions (add_if_then m regexp seq) stream
+| [< 'Genlex.Kwd "when" ; 'Genlex.String regexp; 'Genlex.Kwd "then"; 'Genlex.String seq; 'Genlex.Kwd ";" >] ->
+  parse_conditions (add_if_then m ("{true} * ("^regexp^")") seq) stream
 | [< 'Genlex.Kwd "only"; 'Genlex.Kwd "if" ; 'Genlex.String seq; 'Genlex.Kwd "then"; 'Genlex.String regexp; 'Genlex.Kwd ";" >] ->
   parse_conditions (add_only_if m seq regexp) stream
 | [< 'Genlex.Kwd "endmodule" >] -> m
@@ -83,7 +85,7 @@ let only_if_to_expr (if_string,then_string) =
 
 let reglisse_to_aiger ?(prefix="never") t = 
   let aiger1 = 
-    if t.never = [] then None
+    if t.never = [] && t.if_then = [] && t.only_if = [] then None
     else 
       let expressions = List.map RegularExpression.of_string t.never in
       let expressions = 
