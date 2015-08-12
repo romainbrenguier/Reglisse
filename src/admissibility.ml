@@ -117,13 +117,19 @@ let compositional_synthesis game_list =
   let conjunction = 
     List.fold_left Region.intersection (Region.tt()) admissibles
   in
+
+  Timer.log "computation for subgames finished";
+
   let product = 
     List.fold_left 
       (fun accu (a,_,_,_,_) -> 
 	Aiger.compose accu a
       ) Aiger.empty game_list
   in
+  Timer.log "aiger product finished";
+
   let product_bdd = AigerBdd.Circuit.of_aiger product in
+  Timer.log "circuit of the product finished";
 
   let add_list set list = List.fold_left (fun a b -> AigerBdd.VariableSet.add b a) set list in
   let of_list = add_list AigerBdd.VariableSet.empty in
@@ -156,4 +162,6 @@ let compositional_synthesis game_list =
        i+1, Region.intersection accu v
       ) (0,Region.tt()) game_list
   in
+  Timer.log "winning strategy in the product finished";
+
   product,product_bdd,controllable_inputs,winning 

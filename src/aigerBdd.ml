@@ -360,35 +360,53 @@ let reorder_aiger aiger =
   let ands = Hashtbl.create aiger.Aiger.num_ands in
   let mapping = Hashtbl.create aiger.Aiger.num_ands in
   List.iter (fun (a,b,c) -> Hashtbl.add ands a (a,b,c)) aiger.Aiger.ands;
-  Hashtbl.add mapping Aiger.aiger_true Aiger.aiger_true;
-  Hashtbl.add mapping Aiger.aiger_false Aiger.aiger_false;
 
-  let max_lit = 0 in
-  let max_lit = 
-    List.fold_left (fun ml a -> Hashtbl.add mapping a (Aiger.int2lit (ml+2)); ml + 2) max_lit aiger.Aiger.inputs 
-  in
-  let max_lit = 
-    List.fold_left (fun ml (a,_) -> Hashtbl.add mapping a (Aiger.int2lit (ml+2)); ml + 2) max_lit aiger.Aiger.latches
-  in
 
+  let add_mapping k v = 
+    if Aiger.sign k 
+    then Hashtbl.add mapping (Aiger.aiger_not k) (Aiger.aiger_not v)
+    else Hashtbl.add mapping k v
+  in
+	     
   let find_mapping r = 
     let m = Hashtbl.find mapping (Aiger.strip r) in
     if Aiger.sign r then Aiger.aiger_not m else m
   in
 
+  add_mapping Aiger.aiger_true Aiger.aiger_true;
+  add_mapping Aiger.aiger_false Aiger.aiger_false;
+
+  let max_lit = 0 in
+  let max_lit = 
+    List.fold_left 
+      (fun ml a -> 
+       add_mapping a (Aiger.int2lit (ml+2)); 
+       ml + 2
+      ) max_lit aiger.Aiger.inputs 
+  in
+  let max_lit = 
+    List.fold_left 
+      (fun ml (a,_) -> 
+       add_mapping a (Aiger.int2lit (ml+2)); 
+       ml + 2
+      ) max_lit aiger.Aiger.latches
+  in
+
+
   let rec explore gates max_lit a = 
-    try gates, Hashtbl.find mapping a, max_lit
+    try gates, find_mapping a, max_lit
     with Not_found ->
-      if  Aiger.lit2int a < 2 * (aiger.Aiger.num_latches + aiger.Aiger.num_inputs + 1)
+      (*if (* Aiger.lit2int a < 2 * (aiger.Aiger.num_latches + aiger.Aiger.num_inputs + 1) *) 
+	
       then gates, a, max_lit
-      else
+      else*)
 	let (lhs,rhs0,rhs1) = Hashtbl.find ands a in
 	let gates,striped0,max_lit = explore gates max_lit (Aiger.strip rhs0) in 
 	let new_rhs0 = if Aiger.sign rhs0 then Aiger.aiger_not striped0 else striped0 in
 	let gates,striped1,max_lit = explore gates max_lit (Aiger.strip rhs1) in 
 	let new_rhs1 = if Aiger.sign rhs1 then Aiger.aiger_not striped1 else striped1 in
 	let gate = Aiger.int2lit (max_lit + 2) in
-	Hashtbl.add mapping lhs gate;
+	add_mapping lhs gate;
 	(gate,new_rhs0, new_rhs1)::gates, gate,  max_lit+2
   in
 
@@ -402,13 +420,22 @@ let reorder_aiger aiger =
 
   let inputs = List.map find_mapping aiger.Aiger.inputs in
 
-  let latches = 
-    List.map
-      (fun (l,r) -> find_mapping l, find_mapping r
-      ) aiger.Aiger.latches 
+  let latches,gates,max_lit = 
+    List.fold_left
+      (fun (latches,gates,max_lit) (l,r) -> 
+       let (g,nr,m) = explore gates max_lit r in
+       (find_mapping l, nr) :: latches, g , m
+      ) ([],gates,max_lit) aiger.Aiger.latches 
   in
 
-  let outputs =  List.map find_mapping aiger.Aiger.outputs  in
+  let outputs,gates,max_lit =  
+    List.fold_left
+      (fun (outputs,gates,max_lit) o ->
+       let (g,no,m) = explore gates max_lit o in
+       find_mapping o :: outputs, g, m
+      ) ([],gates,max_lit) aiger.Aiger.outputs  
+  in
+
   let symbols = Aiger.SymbolMap.map find_mapping aiger.Aiger.symbols in
   
   let abstract = 

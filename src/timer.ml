@@ -1,4 +1,8 @@
 
 let display () =
   let t = Unix.times () in
-  Printf.printf "user    %fs\nsys     %fs\n" t.tms_utime t.tms_stime 
+  Printf.printf "[%.3fs]" t.tms_utime
+
+let log string = 
+  display ();
+  print_endline string

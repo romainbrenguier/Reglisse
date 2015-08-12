@@ -147,13 +147,16 @@ let input_output_from_bdd aiger input bdd =
 
 
 let strategy_to_aiger aiger strategy controllables uncontrollables = 
+  Timer.log "converting strategy to bdds";
   let strategy_bdds = strategy_to_bdds strategy controllables uncontrollables in
+  Timer.log "converting bdds to a circuit";
   let circuit = 
     List.fold_left
       (fun aiger (contr,bdd) -> 
        input_output_from_bdd aiger contr bdd 
       ) aiger strategy_bdds 
   in
+  Timer.log "cleaning the circuit";
   AigerBdd.reorder_aiger circuit
 
 

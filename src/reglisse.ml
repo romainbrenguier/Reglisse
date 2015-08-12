@@ -222,20 +222,21 @@ let assume_admissible_synthesis aigers =
      Cudd.dumpDot "winning.dot" (Region.latch_configuration winning);
     );
 
-  Timer.display();
+  
 
   if !output_product
   then (
-    print_endline "writing product.aag";
+    Timer.log "writing product.aag";
     let aig = merge_outputs product_aig in
     let aig = make_controllable aig controllables in
     Aiger.write_to_file aig "product.aag";
   );
 
-  Timer.display();
+  Timer.log "computing strategy";
 
   let strategy = Attractor.strategy product winning in
 
+  Timer.log "exporting to aiger";
   let contr = 
     List.fold_left
       (fun accu (_,_,c,_,_) -> 
@@ -253,6 +254,7 @@ let assume_admissible_synthesis aigers =
   in
 
   let aig_strategy = Attractor.strategy_to_aiger product_aig strategy (AigerBdd.VariableSet.elements contr) (AigerBdd.VariableSet.elements uncontr) in
+  Timer.log "assume_admissible_synthesis finished";
   aig_strategy
 
     
@@ -306,6 +308,9 @@ let main =
     List.rev res
 
   in 
+
+  Cudd.init 100;
+
   let synth = 
     match specs with 
     | [spec] -> 
@@ -315,16 +320,16 @@ let main =
       safety_synthesis aiger spec.inputs spec.outputs
     | spec_list ->
       let aigers,_ = 
-	List.fold_left (fun (accu,i) x -> 
-	  let prefix = "never_"^string_of_int i in
-	  let aiger = reglisse_to_aiger ~prefix x in
-	  let aigerBdd = AigerBdd.Circuit.of_aiger aiger in
-	  let unsafe = AigerBdd.Variable.to_bdd (AigerBdd.Variable.find (AigerBdd.of_aiger_symbol (prefix^"_accept",Some 0))) in 
-	  (* be carreful here "never" gets an integer added *)
+	List.fold_left
+	  (fun (accu,i) x -> 
+	   let prefix = "never_"^string_of_int i in
+	   let aiger = reglisse_to_aiger ~prefix x in
+	   let aigerBdd = AigerBdd.Circuit.of_aiger aiger in
+	   let unsafe = AigerBdd.Variable.to_bdd (AigerBdd.Variable.find (AigerBdd.of_aiger_symbol (prefix^"_accept",Some 0))) in 
+	   (* be carreful here "never" gets an integer added *)
 	  let contr,uncontr = control aiger x.inputs x.outputs in
 	  (aiger,aigerBdd, contr, uncontr, unsafe) :: accu, i+1
-
-	) ([],0) spec_list
+	  ) ([],0) spec_list
       in
       assume_admissible_synthesis aigers
 

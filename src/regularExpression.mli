@@ -37,6 +37,7 @@ val to_string : t -> string
 (** [to_aiger] and [regexp expr] convert a regular expression 
     into an AIG with an output called ACCEPT that is true after seeing 
     an accepting state.
+    Cudd has to be initialized before calling this function.
 *)
 val to_aiger : ?prefix:string -> t -> Aiger.t
 val regexp : string -> Aiger.t

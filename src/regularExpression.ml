@@ -431,7 +431,7 @@ let to_aiger ?(prefix="") expr =
   Common.debug (automaton_to_string we_auto);
   let co_auto = coaccessible we_auto in
   Common.debug (automaton_to_string co_auto);
-  Cudd.init 100;
+  (* Cudd.init 100; *)
   automaton_to_aiger ~prefix co_auto
 
 let regexp string = to_aiger (of_string string)
