@@ -35,7 +35,7 @@ val labels : t -> Common.StringSet.t
 val to_string : t -> string
 
 (** [to_aiger] and [regexp expr] convert a regular expression 
-    into an AIG with an output called ACCEPT that is true after seeing 
+    into an AIG with an output called (prefix)_accept that is true after seeing 
     an accepting state.
     Cudd has to be initialized before calling this function.
 *)

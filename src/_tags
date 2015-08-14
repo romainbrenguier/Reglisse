@@ -2,6 +2,7 @@
 <aigerBdd.*>: use_ocaml-aiger, use_ocaml-cudd
 <bddToAiger.*>: use_ocaml-aiger, use_ocaml-cudd
 <boolean.*> or <expression.*>: use_ocaml-aiger, use_ocaml-cudd
+<extendedExpression.*>: use_ocaml-aiger
 <attractor.*> or <region.*>: use_ocaml-aiger, use_ocaml-cudd
 <admissibility.*>: use_ocaml-aiger, use_ocaml-cudd
 <proposition.*> or <regularExpression.*> or <sequence.*>: use_ocaml-aiger, use_ocaml-cudd

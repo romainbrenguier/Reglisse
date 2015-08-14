@@ -3,52 +3,96 @@
 let output_game = ref true
 let output_product = ref true
 
+
+type safety = 
+  | Not of string 
+  | Never of string 
+  | If_then of string * string 
+  | Only_if of string * string
+  | When of string * string 
+  | If_then_else of string * string * string 
+  | When_else of string * string * string 
+
+let rec safety_to_expr = function 
+  | Not s -> ExtendedExpression.of_string s
+  | Never s -> ExtendedExpression.of_string ("{true} * ("^s^")")
+  | If_then (if_string, then_string) ->
+     let regexp_if = RegularExpression.of_string if_string in
+     let regexp_then = Sequence.string_neg then_string in
+     let exp = RegularExpression.concat regexp_if regexp_then in
+     ExtendedExpression.regexp exp
+  | Only_if (if_string, then_string) ->
+     let regexp_if = Sequence.string_neg if_string in
+     let regexp_then = RegularExpression.of_string then_string in
+     let exp = RegularExpression.concat regexp_if regexp_then in
+     ExtendedExpression.regexp exp
+  | When (s,t) -> 
+     safety_to_expr (If_then ("{true} * ("^s^")",t))
+  | If_then_else (if_string, then_string, else_string) ->
+     let regexp_if = RegularExpression.of_string if_string in
+     let regexp_then = Sequence.string_neg then_string in
+     let regexp_else = Sequence.string_neg else_string in
+     let exp1 = RegularExpression.concat regexp_if regexp_then in
+     ExtendedExpression.alt 
+       [ ExtendedExpression.regexp exp1;
+	 ExtendedExpression.concat 
+	   (ExtendedExpression.neg (ExtendedExpression.regexp regexp_if))
+	   (ExtendedExpression.regexp regexp_else)]
+  | When_else (s,t,e) -> 
+     safety_to_expr (If_then_else ("{true} * ("^s^")",t,e))
+     
+
 type t =
   { 
     module_name: string;
     inputs: string list; 
     outputs: string list;
-    never: string list;
-    if_then : (string * string) list;
-    (* Be carefull when using only_if, its semantics is not totaly intuitive *)
-    only_if : (string * string) list;
+    safety: safety list;
     eventually: string list;
   }
 
 let new_module name = 
-  {module_name=name;inputs=[];outputs=[];never=[];eventually=[];if_then=[];only_if=[]}
+  {module_name=name;inputs=[];outputs=[];safety=[];eventually=[]}
 
 let add_input m input = {m with inputs=input :: m.inputs}
 let add_output m output = {m with outputs=output :: m.outputs}
-let add_never m never = {m with never=never :: m.never}
-let add_if_then m i t = {m with if_then=(i,t) :: m.if_then}
-let add_only_if m i t = {m with only_if=(i,t) :: m.only_if}
+let add_safety m never = {m with safety=never :: m.safety}
 let add_eventually m eventually = {m with eventually=eventually :: m.eventually}
 
 let lexer = Genlex.make_lexer
   ["module";"endmodule";"never";"enventually";
-   "only";"if";"then";"input";"output";"when";
+   "only";"if";"then";"else";"input";"output";"when";
    "(";")";",";";"]
 
 exception NoMoreModule
 
 let parse stream =
+  let parse_else = parser
+  | [< 'Genlex.Kwd "else"; 'Genlex.String regexp; 'Genlex.Kwd ";" >] -> Some regexp
+  | [< 'Genlex.Kwd ";" >] -> None
+  in
+
   let rec parse_conditions m = parser
-| [< 'Genlex.Kwd "not" ; 'Genlex.String regexp; 'Genlex.Kwd ";" >] ->
-  parse_conditions (add_never m regexp) stream
-| [< 'Genlex.Kwd "never" ; 'Genlex.String regexp; 'Genlex.Kwd ";" >] ->
-  parse_conditions (add_never m ("{true} * ("^regexp^")")) stream
-| [< 'Genlex.Kwd "eventually" ; 'Genlex.String regexp; 'Genlex.Kwd ";" >] ->
-   failwith "eventually not supported";
-   parse_conditions (add_eventually m regexp) stream
-| [< 'Genlex.Kwd "if" ; 'Genlex.String regexp; 'Genlex.Kwd "then"; 'Genlex.String seq; 'Genlex.Kwd ";" >] ->
-  parse_conditions (add_if_then m regexp seq) stream
-| [< 'Genlex.Kwd "when" ; 'Genlex.String regexp; 'Genlex.Kwd "then"; 'Genlex.String seq; 'Genlex.Kwd ";" >] ->
-  parse_conditions (add_if_then m ("{true} * ("^regexp^")") seq) stream
-| [< 'Genlex.Kwd "only"; 'Genlex.Kwd "if" ; 'Genlex.String seq; 'Genlex.Kwd "then"; 'Genlex.String regexp; 'Genlex.Kwd ";" >] ->
-  parse_conditions (add_only_if m seq regexp) stream
-| [< 'Genlex.Kwd "endmodule" >] -> m
-| [< >] -> failwith "in Reglisse.parse: waiting for [never \"regexp string\";] or [endmodule]"
+  | [< 'Genlex.Kwd "not" ; 'Genlex.String regexp; 'Genlex.Kwd ";" >] ->
+     parse_conditions (add_safety m (Not regexp)) stream
+  | [< 'Genlex.Kwd "never" ; 'Genlex.String regexp; 'Genlex.Kwd ";" >] ->
+     parse_conditions (add_safety m (Never regexp)) stream
+  | [< 'Genlex.Kwd "eventually" ; 'Genlex.String regexp; 'Genlex.Kwd ";" >] ->
+     failwith "eventually not supported";
+     parse_conditions (add_eventually m regexp) stream
+
+  | [< 'Genlex.Kwd "if" ; 'Genlex.String regexp; 'Genlex.Kwd "then"; 'Genlex.String seq; x = parse_else >] ->
+     (match x with None -> parse_conditions (add_safety m (If_then (regexp,seq))) stream
+		| Some e -> parse_conditions (add_safety m (If_then_else (regexp,seq,e))) stream)
+
+  | [< 'Genlex.Kwd "when" ; 'Genlex.String regexp; 'Genlex.Kwd "then"; 'Genlex.String seq; x = parse_else >] ->
+     (match x  with None -> parse_conditions (add_safety m (When (regexp,seq))) stream
+		  | Some e -> parse_conditions (add_safety m (When_else (regexp,seq,e))) stream)
+
+  | [< 'Genlex.Kwd "only"; 'Genlex.Kwd "if" ; 'Genlex.String seq; 'Genlex.Kwd "then"; 'Genlex.String regexp; 'Genlex.Kwd ";" >] ->
+     parse_conditions (add_safety m (Only_if (seq,regexp))) stream
+  | [< 'Genlex.Kwd "endmodule" >] -> m
+  | [< >] -> failwith "in Reglisse.parse: waiting for [never \"regexp string\";] or [endmodule]"
   in
 
   let rec parse_arguments m = parser
@@ -73,33 +117,14 @@ let parse stream =
   in aux stream
 
 
-let if_then_to_expr (if_string,then_string) =
-  let regexp_if = RegularExpression.of_string if_string in
-  let regexp_then = Sequence.string_neg then_string in
-  RegularExpression.concat regexp_if regexp_then 
-
-let only_if_to_expr (if_string,then_string) =
-  let regexp_if = Sequence.string_neg if_string in
-  let regexp_then = RegularExpression.of_string then_string in
-  RegularExpression.concat regexp_if regexp_then 
 
 let reglisse_to_aiger ?(prefix="never") t = 
   let aiger1 = 
-    if t.never = [] && t.if_then = [] && t.only_if = [] then None
+    if t.safety = [] then None
     else 
-      let expressions = List.map RegularExpression.of_string t.never in
-      let expressions = 
-	List.rev_append
-	  (List.map if_then_to_expr t.if_then)
-	  expressions 
-      in
-      let expressions = 
-	List.rev_append
-	  (List.map only_if_to_expr t.only_if)
-	  expressions 
-      in
-      let expr = RegularExpression.alt expressions in
-      Some (RegularExpression.to_aiger ~prefix expr)
+      let expressions = List.map safety_to_expr t.safety in
+      let expr = ExtendedExpression.alt expressions in
+      Some (ExtendedExpression.to_aiger ~prefix expr)
   in
   let aiger2 = 
     if t.eventually = [] then None

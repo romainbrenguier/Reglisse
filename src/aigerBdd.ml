@@ -255,7 +255,13 @@ let bdd_to_aiger ~inputs ~latches ~outputs ~wires bdd =
 let variables_aiger aiger = 
   (* set of variables *)
   let vs = VariableSet.empty in
-  let vs = List.fold_left (fun vs inp -> VariableSet.add (Variable.find (of_aiger_symbol (Aiger.lit2symbol aiger inp))) vs) vs (List.rev_append aiger.Aiger.inputs aiger.Aiger.outputs) in
+
+  let vs = 
+    List.fold_left
+      (fun vs inp -> 
+       VariableSet.add (Variable.find (of_aiger_symbol (Aiger.lit2symbol aiger inp))) vs
+      ) vs (List.rev_append aiger.Aiger.inputs aiger.Aiger.outputs) 
+  in
   let vs = List.fold_left (fun vs (l,_) -> VariableSet.add (Variable.find (of_aiger_symbol (Aiger.lit2symbol aiger l))) vs) vs aiger.Aiger.latches in
   vs
 
@@ -450,7 +456,7 @@ let reorder_aiger aiger =
   {aiger with 
     inputs = inputs; 
     ands = List.rev gates; 
-    latches = latches; outputs=outputs; 
+    latches = List.rev latches; outputs=List.rev outputs; 
     num_ands = List.length gates;
     num_latches = List.length latches;
     num_outputs =  List.length outputs;
