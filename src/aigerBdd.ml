@@ -456,7 +456,7 @@ let reorder_aiger aiger =
   {aiger with 
     inputs = inputs; 
     ands = List.rev gates; 
-    latches = List.rev latches; outputs=List.rev outputs; 
+    latches = List.rev latches; outputs=outputs; 
     num_ands = List.length gates;
     num_latches = List.length latches;
     num_outputs =  List.length outputs;

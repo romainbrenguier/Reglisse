@@ -104,15 +104,18 @@ let assume_admissible game player1_inputs player2_inputs fail1 fail2 =
     (Attractor.trap game player2_inputs player1_inputs (*Region.intersection adm2 adm1*) ~weak:true fail2) in
   Region.intersection w1 w2
 
+type game = Aiger.t * AigerBdd.Circuit.t * AigerBdd.Variable.t list * AigerBdd.Variable.t list * Cudd.bdd
+
+let admissible_strategies game = 
+  let (a,g,c,u,err) = game in
+  let v = value g c u err in
+  (if Region.includes_initial (v Winning) then 1
+   else if Region.includes_initial (v Losing) then -1
+   else 0), strategies g v
+
 let compositional_synthesis game_list =
 
-  let admissibles = 
-    List.fold_left 
-      (fun accu (a,g,c,u,err) ->
-	let v = value g c u err in
-	strategies g v :: accu
-      ) [] game_list
-  in
+  let admissibles = List.map snd (List.map admissible_strategies game_list) in
 
   let conjunction = 
     List.fold_left Region.intersection (Region.tt()) admissibles

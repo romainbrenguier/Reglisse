@@ -1,7 +1,7 @@
 
 all: 
 	cd src && make
-	cp src/reglisse.byte reglisse
+	cp src/main.byte reglisse
 	cp src/simulation.byte simulation
 
 clean:

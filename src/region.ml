@@ -38,3 +38,12 @@ let initial_state aiger =
        (List.map (bdd_of_lit aiger) 
 	  (List.rev_append aiger.Aiger.outputs 
 	     (List.map fst aiger.Aiger.latches))))
+
+let includes_initial region =
+  let m = AigerBdd.Variable.max_var () in
+  let bdd = ref (Cudd.bddTrue()) in
+  for i = 0 to m do 
+    bdd := Cudd.bddAnd (!bdd) (Cudd.bddNot (Cudd.ithVar i))
+  done;
+  let includes = Cudd.bddRestrict (latch_configuration region) (!bdd) in
+  Cudd.value includes = 1 

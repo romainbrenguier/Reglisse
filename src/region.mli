@@ -26,6 +26,7 @@ val smallest_fixpoint : (t -> t) -> t -> t
 (** initial state of the game (valuation 0 for latches *and* outputs) *)
 val initial_state : Aiger.t -> Cudd.bdd
 
+val includes_initial : t -> bool
 
 (** the first BDD gives restriction on the action of the players playing first and the second BDD on the actions of the player playing second *)
 val of_bdds : Cudd.bdd -> Cudd.bdd -> t

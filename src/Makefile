@@ -1,6 +1,6 @@
 
 
-all: reglisse.byte simulation.byte
+all: main.byte simulation.byte
 
 clean:
 	ocamlbuild -clean
@@ -11,12 +11,12 @@ clean:
 doc:
 	ocamlbuild speculog.docdir/index.html
 
-reglisse.byte: *.ml
-	ocamlbuild reglisse.byte
+main.byte: *.ml
+	ocamlbuild main.byte
 
 simulation.byte: *.ml
 	ocamlbuild simulation.byte
 
-test: reglisse.byte
-	./reglisse.byte examples/washing.rgl
+test: main.byte
+	./main.byte examples/washing.rgl
 
