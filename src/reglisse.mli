@@ -32,5 +32,17 @@ exception NoMoreModule
 
 val parse : Genlex.token Stream.t -> t
 
-val reglisse_to_aiger : ?prefix:string -> ?environment:(string,Region.t) Hashtbl.t -> t -> Aiger.t
+val safety_to_aiger : ?prefix:string -> t -> Aiger.t option
+
+module Env :
+sig 
+  type t
+  val create : int -> t
+  val add_module : t -> string -> string list -> string list -> Aiger.t -> unit
+  val find_arguments : t -> string -> string list 
+  val find_aiger : t -> string -> Aiger.t
+end
+
+val calls_to_aiger : ?environment:Env.t -> t -> Aiger.t option
+
 

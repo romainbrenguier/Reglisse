@@ -93,14 +93,14 @@ let assume_admissible_synthesis games =
     
 let write_aiger name aig =
   let output_file = name^".aag" in
-  print_endline ("writing aiger in "^output_file);
+  Timer.log ("writing aiger in "^output_file);
   let outch = open_out output_file in
   Aiger.write aig outch;
   close_out outch
 
 let write_verilog file module_name aig =
   let output_file = file^".v" in
-  print_endline ("writing verilog in "^output_file);
+  Timer.log ("writing verilog in "^output_file);
   let outch = open_out output_file in
   Verilog.of_aiger module_name aig outch;
   close_out outch
@@ -135,31 +135,43 @@ let main =
 
   let tab_adm = Hashtbl.create 10 in
   let tab_game = Hashtbl.create 10 in
-  let _ = 
-    List.fold_left
-      (fun i modul -> 
-       Printf.printf "module %s\n" modul.module_name;
-       (* be carreful here "never" gets an integer added *)
-       let prefix = "never_"^string_of_int i in
-       let aiger = reglisse_to_aiger ~prefix modul in
-       let game = Game.of_aiger aiger modul.inputs modul.outputs (prefix^"_accept") in
-       Hashtbl.add tab_game modul.module_name game;
-       let value,adm = Admissibility.admissible_strategies game in
-       Hashtbl.add tab_adm modul.module_name adm;
-       Printf.printf "Value for module %s = %d\n" modul.module_name value;
-       if value = 1 
-       then 
-	 let aig_strategy = Strategy.to_aiger aiger adm game.Game.contr game.Game.uncontr in
-	 write_aiger modul.module_name aig_strategy; 
-	 write_verilog modul.module_name modul.module_name aig_strategy		       
-	 else ();
-       i+1
-      ) 0 specs
-  in
-  try let aig = assume_admissible_synthesis tab_game in
+  let environment = Env.create (List.length specs) in
+
+  List.fold_left
+    (fun i modul -> 
+     Timer.log ("module "^modul.module_name);
+     (* be carreful here "never" gets an integer added *)
+     let prefix = "never_"^string_of_int i in
+     match safety_to_aiger ~prefix modul with
+     | None -> 
+	prerr_endline "Warning: compositional module"; 
+	let Some aig = Reglisse.calls_to_aiger ~environment modul in
+	let game = Game.of_aiger aig modul.inputs modul.outputs (prefix^"_accept") in
+	Hashtbl.add tab_game modul.module_name game;
+	write_aiger modul.module_name aig; 
+	write_verilog modul.module_name modul.module_name aig;
+	i+1
+     | Some aiger ->
+	let game = Game.of_aiger aiger modul.inputs modul.outputs (prefix^"_accept") in
+	Hashtbl.add tab_game modul.module_name game;
+	let value,adm = Admissibility.admissible_strategies game in
+	Hashtbl.add tab_adm modul.module_name adm;
+	Timer.log ("Value for module "^modul.module_name^" = "^string_of_int value);
+	if value = 1 
+	then 
+	  let aig_strategy = Strategy.to_aiger aiger adm game.Game.contr game.Game.uncontr in
+	  let aig_strategy = Aiger.hide aig_strategy (prefix^"_accept",Some 0) in
+	  Reglisse.Env.add_module environment modul.module_name modul.inputs modul.outputs aig_strategy;
+	  write_aiger modul.module_name aig_strategy; 
+	  write_verilog modul.module_name modul.module_name aig_strategy		       
+	else ();
+	i+1
+    ) 0 specs
+
+  (* try let aig = assume_admissible_synthesis tab_game in
       write_aiger file aig;
       write_verilog file (List.hd specs).module_name aig
-  with NoMainModule -> prerr_endline "Warning: no module Main"
+  with NoMainModule -> prerr_endline "Warning: no module Main"*)
 
   
 

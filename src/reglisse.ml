@@ -61,11 +61,17 @@ let add_call m c = { m with module_calls = c :: m.module_calls }
 let lexer = Genlex.make_lexer
   ["module";"endmodule";"never";"enventually";
    "only";"if";"then";"else";"input";"output";"when";
-   "(";")";",";";"]
+   "(";")";",";";";"/*";"*/"]
 
 exception NoMoreModule
 
 let parse stream =
+
+  let rec parse_comment = parser
+  | [< 'Genlex.Kwd "*/" >] -> ()
+  | [< >] -> Stream.junk stream; parse_comment stream
+  in
+
   let parse_else = parser
   | [< 'Genlex.Kwd "else"; 'Genlex.String regexp; 'Genlex.Kwd ";" >] -> Some regexp
   | [< 'Genlex.Kwd ";" >] -> None
@@ -99,7 +105,7 @@ let parse stream =
 
   | [< 'Genlex.Ident name; 'Genlex.Kwd "("; a = parse_arguments []; 'Genlex.Kwd ";" >] ->
      parse_conditions (add_call m (name, a)) stream
-
+  | [< 'Genlex.Kwd "/*" >] -> parse_comment stream; parse_conditions m stream
   | [< 'Genlex.Kwd "endmodule" >] -> m
   | [< >] -> failwith "in Reglisse.parse: waiting for [never \"regexp string\";] or [endmodule]"
   in
@@ -118,34 +124,54 @@ let parse stream =
   in
 
   let rec aux = parser
-| [< 'Genlex.Kwd "module"; 'Genlex.Ident mn; 'Genlex.Kwd "(" >] ->
-  parse_arguments (new_module mn) stream
-| [< >] -> raise NoMoreModule
+    | [< 'Genlex.Kwd "module"; 'Genlex.Ident mn; 'Genlex.Kwd "(" >] ->
+       parse_arguments (new_module mn) stream
+    | [< 'Genlex.Kwd "/*" >] -> parse_comment stream;  aux stream
+    | [< >] -> 
+       Stream.empty stream;
+       raise NoMoreModule
+
   (*failwith "in Reglisse.parse: stream should start with: [module module_name ( ]"*)
 
   in aux stream
 
-let empty_environment = Hashtbl.create 1
 
-let reglisse_to_aiger ?(prefix="never") ?(environment=empty_environment) t = 
-  let aiger1 = 
-    if t.safety = [] then None
-    else 
-      let expressions = List.map safety_to_expr t.safety in
-      let expr = ExtendedExpression.alt expressions in
-      Some (ExtendedExpression.to_aiger ~prefix expr)
-  in
-  let aiger2 = 
-    if t.eventually = [] then None
-    else
-      let expressions = List.map RegularExpression.of_string t.eventually in
-      let expr = RegularExpression.alt expressions in
-      Some (RegularExpression.to_aiger ~prefix:"eventually" expr)
-  in
-  match aiger1,aiger2 with 
-  | Some a, None -> a
-  | _ , Some a -> failwith "warning: for now reachability conditions are not working"
-  | None, None -> 
-     print_endline "compositional module";
-     failwith "in Reglisse.reglisse_to_aiger: compositional module not yet implemented"
+let safety_to_aiger  ?(prefix="never") t = 
+  if t.safety = [] then None
+  else
+    let expressions = List.map safety_to_expr t.safety in
+    let expr = ExtendedExpression.alt expressions in
+    Some (ExtendedExpression.to_aiger ~prefix expr)
 
+module Env = 
+struct
+  type t = (string, string list * string list * Aiger.t) Hashtbl.t
+  let default = Hashtbl.create 1
+  let create i = Hashtbl.create i
+  let add_module h name inputs outputs aiger =
+    Hashtbl.add h name (inputs,outputs,aiger)
+
+  let find h x = Hashtbl.find h x
+  let find_arguments h name = 
+    let (i,o,_) = find h name in o @ i
+
+  let find_aiger h name = 
+    let (_,_,a) = find h name in a
+end
+
+let calls_to_aiger ?(environment=Env.default) t = 
+  if t.module_calls = [] then None
+  else
+    Some 
+      (
+	List.fold_left 
+	  (fun aiger (module_name,arguments) ->
+	   Common.debug ("Calling "^module_name);
+	   let renaming = List.combine (Env.find_arguments environment module_name) arguments in
+	   if !Common.display_debug
+	   then List.iter (fun (a,b) -> Printf.printf "renaming %s into %s\n" a b) renaming;
+	   (* prerr_endline "we should also rename hidden outputs? so that there are no collisions"; *)
+	   let aig1 = Aiger.full_rename (Env.find_aiger environment module_name) renaming in
+	   Aiger.compose aiger aig1 
+	  ) Aiger.empty t.module_calls
+      )
