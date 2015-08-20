@@ -3,26 +3,6 @@ open Reglisse
 let output_game = ref true
 let output_product = ref true
 
-
-let control aiger inputs outputs = 
-  let contr =
-    List.fold_left 
-      (fun accu o -> 
-	try Aiger.symbol2lit aiger (o,Some 0) :: accu
-	with Not_found -> Printf.eprintf "warning in Reglisse.synthesis: variable %s does not appear in the automaton\n" o; accu
-      ) [] outputs
-  in
-  let uncontr = 
-    List.fold_left 
-      (fun accu o -> 
-	try Aiger.symbol2lit aiger (o,Some 0) :: accu
-	with Not_found -> Printf.eprintf "warning in Reglisse.synthesis: variable %s does not appear in the automaton\n" o; accu
-      )[] inputs
-  in
-  List.map (AigerBdd.Variable.of_lit aiger) contr,
-  List.map (AigerBdd.Variable.of_lit aiger) uncontr
-  
-
 let merge_outputs aiger = 
   match aiger.Aiger.outputs with 
   | [] -> failwith "in Reglisse.merge_outputs: no outputs"
@@ -49,16 +29,18 @@ let make_controllable aiger controllables =
      else aig
     ) aiger aiger.Aiger.inputs
 
-
+exception NoMainModule 
 let assume_admissible_synthesis games =
+  if not (Hashtbl.mem games "Main")
+  then raise NoMainModule;
+
   print_endline "assume admissible synthesis";
   let aig = Hashtbl.find games "Main" in
   let product_aig,product,controllables,winning = 
     Admissibility.compositional_synthesis [aig]
   in
- 
 
-  let initial_states = List.map (fun (a,_,_,_,_) -> Region.initial_state a) [aig] (*games*) in
+  let initial_states = List.map Game.initial_state [aig] (*games*) in
   let initial = List.fold_left Cudd.bddAnd (Cudd.bddTrue()) initial_states in
   let initial_winning = Cudd.bddRestrict (Region.latch_configuration winning) initial in
 
@@ -83,7 +65,7 @@ let assume_admissible_synthesis games =
   );
 
   Timer.log "computing strategy";
-  let strategy = Attractor.strategy product winning in
+  let strategy = Strategy.of_region product winning in
 
   Timer.log "exporting to aiger";(*
   let contr = 
@@ -101,14 +83,27 @@ let assume_admissible_synthesis games =
 	 ) AigerBdd.VariableSet.empty games
       ) contr
   in*)
-  let (_,_,c,u,_) = aig in
-  let contr = List.fold_left (fun a b -> AigerBdd.VariableSet.add b a) AigerBdd.VariableSet.empty c in
-  let uncontr = List.fold_left (fun a b -> AigerBdd.VariableSet.add b a) AigerBdd.VariableSet.empty u in
+  let contr = List.fold_left (fun a b -> AigerBdd.VariableSet.add b a) AigerBdd.VariableSet.empty aig.contr in
+  let uncontr = List.fold_left (fun a b -> AigerBdd.VariableSet.add b a) AigerBdd.VariableSet.empty aig.uncontr in
 
-  let aig_strategy = Attractor.strategy_to_aiger product_aig strategy (AigerBdd.VariableSet.elements contr) (AigerBdd.VariableSet.elements uncontr) in
+  let aig_strategy = Strategy.to_aiger product_aig strategy (AigerBdd.VariableSet.elements contr) (AigerBdd.VariableSet.elements uncontr) in
   Timer.log "assume_admissible_synthesis finished";
   aig_strategy
 
+    
+let write_aiger name aig =
+  let output_file = name^".aag" in
+  print_endline ("writing aiger in "^output_file);
+  let outch = open_out output_file in
+  Aiger.write aig outch;
+  close_out outch
+
+let write_verilog file module_name aig =
+  let output_file = file^".v" in
+  print_endline ("writing verilog in "^output_file);
+  let outch = open_out output_file in
+  Verilog.of_aiger module_name aig outch;
+  close_out outch
     
 let main = 
   if Array.length Sys.argv < 2 then Printf.printf "usage: %s <file.rgl>\n" Sys.argv.(0);
@@ -138,43 +133,37 @@ let main =
 
   Cudd.init 100;
 
-  let synth = 
-    let tab_adm = Hashtbl.create 10 in
-    let tab_game = Hashtbl.create 10 in
-    let _ = 
-      List.fold_left
-	(fun i modul -> 
-	 Printf.printf "module %s\n" modul.module_name;
-	 let prefix = "never_"^string_of_int i in
-	 let aiger = reglisse_to_aiger ~prefix modul in
-	 let aigerBdd = AigerBdd.Circuit.of_aiger aiger in
-	 let unsafe = AigerBdd.Variable.to_bdd (AigerBdd.Variable.find (AigerBdd.of_aiger_symbol (prefix^"_accept",Some 0))) in 
-	 (* be carreful here "never" gets an integer added *)
-	 let contr,uncontr = control aiger modul.inputs modul.outputs in
-	 let game = (aiger,aigerBdd, contr, uncontr, unsafe) in
-	 Hashtbl.add tab_game modul.module_name game;
-	 let value,adm = Admissibility.admissible_strategies game in
-	 Hashtbl.add tab_adm modul.module_name adm;
+  let tab_adm = Hashtbl.create 10 in
+  let tab_game = Hashtbl.create 10 in
+  let _ = 
+    List.fold_left
+      (fun i modul -> 
+       Printf.printf "module %s\n" modul.module_name;
+       (* be carreful here "never" gets an integer added *)
+       let prefix = "never_"^string_of_int i in
+       let aiger = reglisse_to_aiger ~prefix modul in
+       let game = Game.of_aiger aiger modul.inputs modul.outputs (prefix^"_accept") in
+       Hashtbl.add tab_game modul.module_name game;
+       let value,adm = Admissibility.admissible_strategies game in
+       Hashtbl.add tab_adm modul.module_name adm;
+       Printf.printf "Value for module %s = %d\n" modul.module_name value;
+       if value = 1 
+       then 
+	 let aig_strategy = Strategy.to_aiger aiger adm game.Game.contr game.Game.uncontr in
+	 write_aiger modul.module_name aig_strategy; 
+	 write_verilog modul.module_name modul.module_name aig_strategy		       
+	 else ();
+       i+1
+      ) 0 specs
+  in
+  try let aig = assume_admissible_synthesis tab_game in
+      write_aiger file aig;
+      write_verilog file (List.hd specs).module_name aig
+  with NoMainModule -> prerr_endline "Warning: no module Main"
 
-	 Printf.printf "Value for module %s = %d\n" modul.module_name value;
-	 i+1
-	) 0 specs
-    in
-    assume_admissible_synthesis tab_game
-
-
-  in	
-  let output_file = file^".aag" in
-  print_endline ("writing aiger in "^output_file);
-  let outch = open_out output_file in
-  Aiger.write synth outch;
-  close_out outch;
   
-  let output_file = file^".v" in
-  print_endline ("writing verilog in "^output_file);
-  let outch = open_out output_file in
-  Verilog.of_aiger (List.hd specs).module_name synth outch;
-  close_out outch
+
+  
     
 
   

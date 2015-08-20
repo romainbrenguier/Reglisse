@@ -10,4 +10,6 @@
 <reglisse.*> : pp(camlp4o), use_ocaml-aiger, use_ocaml-cudd
 <timer.*> or <aigerBdd.*> or <simulation.*>: use_unix
 <simulation.*> : use_ocaml-aiger, use_ocaml-cudd
+<strategy.*> : use_ocaml-aiger, use_ocaml-cudd
+<game.*> : use_ocaml-aiger, use_ocaml-cudd
 <main.*> : use_ocaml-aiger, use_ocaml-cudd, use_unix

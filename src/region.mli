@@ -11,7 +11,6 @@ val latch_input_configuration : t -> Cudd.bdd
 val negation : t -> t
 val diff : t -> t -> t
 val intersection : t -> t -> t
-val intersection_bdd : t -> Cudd.bdd -> t
 val union : t -> t -> t 
 val equal : t -> t -> bool
 (** everything *)
@@ -19,6 +18,9 @@ val tt : unit -> t
 (** nothing *)
 val ff : unit -> t 
 
+
+(** Warning: this can give weird things if the bdd talks about inputs *)
+val intersection_bdd : t -> Cudd.bdd -> t
 
 val greatest_fixpoint : (t -> t) -> t -> t
 val smallest_fixpoint : (t -> t) -> t -> t
