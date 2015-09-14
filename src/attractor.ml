@@ -1,3 +1,4 @@
+open Game 
 
 let rename_substitute_restrict unsafe aiger =
   let renamed = AigerBdd.Circuit.rename_configuration (Region.latch_configuration unsafe) (AigerBdd.Circuit.array_variables aiger) (AigerBdd.Circuit.array_next_variables aiger) in
@@ -27,8 +28,10 @@ let trap_with_restriction aiger controllables uncontrollables ?(weak=false) unsa
   Region.greatest_fixpoint aux unsafe
 
 
-let trap aiger contr uncontr ?(weak=false) unsafe =
-  trap_with_restriction aiger contr uncontr ~weak (Region.of_bdds unsafe (Cudd.bddFalse())) (Region.tt())
+let trap ?(weak=false) game =
+  trap_with_restriction game.circuit game.contr game.uncontr ~weak (Region.of_bdds game.err (Cudd.bddFalse())) (Region.tt())
+
+let safe ?(weak=false) game = Region.negation (trap ~weak game)
 
 let attractor_with_restriction aiger controllables uncontrollables ?(weak=false) safe restriction =
   trap_with_restriction aiger uncontrollables controllables ~weak:(not weak) safe restriction
@@ -49,9 +52,10 @@ let test aiger =
   AigerBdd.init aiger;
   let unsafe = List.fold_left Cudd.bddOr (Cudd.bddFalse()) (List.map bdd_of_lit aiger.Aiger.outputs) in
   let initial = AigerBdd.bdd_of_valuation (AigerBdd.Circuit.initial_state aiger) in
-  let precomputation = AigerBdd.Circuit.of_aiger aiger in   
-  let trap_set = trap precomputation contrv uncontrv ~weak:false unsafe in
-  let trap_set_weak = trap precomputation contrv uncontrv ~weak:true unsafe in
+  let circuit = AigerBdd.Circuit.of_aiger aiger in   
+  let game = { aiger; circuit; contr=contrv; uncontr=uncontrv; err =unsafe} in
+  let trap_set = trap ~weak:false game in
+  let trap_set_weak = trap ~weak:true game in
   let initial_losing = Cudd.bddRestrict (Region.latch_configuration trap_set) initial in
   let initial_losing_weak = Cudd.bddRestrict (Region.latch_configuration trap_set_weak) initial in
 
@@ -63,7 +67,7 @@ let test aiger =
   else if Cudd.value initial_losing = 0
   then 
     (print_endline "realizable";
-     let strat = Strategy.to_aiger aiger (Strategy.of_region precomputation (Region.negation trap_set)) contrv uncontrv in
+     let strat = Strategy.to_aiger aiger (Strategy.of_region game.circuit (Region.negation trap_set)) contrv uncontrv in
      let file_name = Sys.argv.(1)^".controller.aag" in
      let outch = open_out file_name in
      Aiger.write strat outch;

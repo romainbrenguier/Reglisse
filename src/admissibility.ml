@@ -11,15 +11,21 @@ type value = Winning | CoopWinning | Help | Losing | NotWinning | NotLosing
  * help -> value is 0 but the adversary can take two different actions which result in a state of value at least 0
  *)
 
-let winning p controllables uncontrollables ?(weak=false) unsafe = 
+(*let winning p controllables uncontrollables ?(weak=false) unsafe = 
   Region.negation (trap p controllables uncontrollables ~weak unsafe)
+ *)
 
-let losing p controllables uncontrollables unsafe = 
-  trap p (List.rev_append controllables uncontrollables) [] unsafe
+let losing game = 
+  let g = { game with contr = (List.rev_append game.contr game.uncontr) } in
+  trap g
+  (* p controllables uncontrollables unsafe = 
+  trap p (List.rev_append controllables uncontrollables) [] unsafe*)
 
 let value ?(weak=false) g = 
-  let winning_region = winning g.circuit g.contr g.uncontr ~weak g.err in
-  let losing_region = losing g.circuit g.contr g.uncontr g.err in
+  let winning_region = safe ~weak g in
+  (*winning g.circuit g.contr g.uncontr ~weak g.err in*)
+  let losing_region = losing g in 
+  (*g.circuit g.contr g.uncontr g.err in*)
   let not_winning_region = Region.negation winning_region in
   let not_losing_region = Region.negation losing_region in
   let coop_winning_region = Region.intersection not_winning_region not_losing_region in
@@ -34,10 +40,11 @@ let value ?(weak=false) g =
 
 let strategies aig_bdd v =
   let stratW = Strategy.of_region aig_bdd (v Winning) in
-  let stratC = Strategy.of_region aig_bdd (v CoopWinning) in
-  let stratL = Strategy.of_region aig_bdd (v Losing) in
-  (*Strategy.disj [stratW;stratC;stratL]*)
-  Strategy.disj [stratW;stratC]
+  (*let stratC = Strategy.of_region aig_bdd (v CoopWinning) in
+  let stratL = Strategy.of_region aig_bdd (v Losing) in*)
+  (*Strategy.disj [stratW;stratC;stratL]; print_endline "this is not correct"; *)
+  print_endline "Warning: Admissibilty.strategies does not compute all admissible strategies"; 
+  Strategy.disj [stratW]
   
 
 let admissible_strategies game = 
@@ -71,7 +78,7 @@ let compositional_synthesis game_list =
       ) AigerBdd.VariableSet.empty game_list
   in
 
-  let controllable_inputs =     
+  let controllable_inputs =
     List.fold_left
       (fun accu g -> add_list accu g.contr) AigerBdd.VariableSet.empty game_list
   in

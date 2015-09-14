@@ -1,11 +1,13 @@
 type t = Cudd.bdd
 
 let of_region game region =
-  Cudd.bddVectorCompose (AigerBdd.Circuit.rename_configuration
+  let renamed = AigerBdd.Circuit.rename_configuration
 			   (Region.latch_configuration region)
 			   (AigerBdd.Circuit.array_variables game) 
-			   (AigerBdd.Circuit.array_next_variables game))
-			(AigerBdd.Circuit.composition_vector game)
+			   (AigerBdd.Circuit.array_next_variables game)
+  in
+  let composition_vector = AigerBdd.Circuit.composition_vector game in
+  Cudd.bddVectorCompose renamed composition_vector
 
 
 let disj list = 

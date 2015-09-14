@@ -136,30 +136,79 @@ let parse stream =
   in aux stream
 
 
-let safety_to_aiger  ?(prefix="never") t = 
+
+let parse_file file = 
+  let inch = open_in file in
+  let stream = Stream.of_channel inch in
+  let token_stream = lexer stream in
+  let rec loop accu =
+    let spec =
+      try
+	let spec = parse token_stream in Some spec 
+      with NoMoreModule -> 
+	   close_in inch; None
+	 | e ->
+	    print_endline "Remaining tokens:";
+	    print_endline (Common.remaining_tokens token_stream);
+	    raise e
+		  
+    in match spec with Some x -> loop (x :: accu) | None -> accu
+  in 
+  let res = loop [] in
+  close_in inch;
+  List.rev res
+
+
+let safety_to_aiger ?(prefix="never") t = 
   if t.safety = [] then None
   else
     let expressions = List.map safety_to_expr t.safety in
     let expr = ExtendedExpression.alt expressions in
     Some (ExtendedExpression.to_aiger ~prefix expr)
 
+let safety_to_game modul = 
+  let prefix = "never_"^modul.module_name in
+  match safety_to_aiger ~prefix modul with
+  | Some aiger -> Some ( Game.of_aiger aiger modul.inputs modul.outputs (prefix^"_accept"))
+  | None -> None
+
 module Env = 
 struct
-  type t = (string, string list * string list * Aiger.t) Hashtbl.t
-  let default = Hashtbl.create 1
-  let create i = Hashtbl.create i
-  let add_module h name inputs outputs aiger =
-    Hashtbl.add h name (inputs,outputs,aiger)
+  type t = {arguments: (string, string list * string list) Hashtbl.t;
+	    aigers: (string, Aiger.t) Hashtbl.t;
+	    games: (string, Game.t) Hashtbl.t}
+  let create i = { arguments=Hashtbl.create i; aigers=Hashtbl.create i; games=Hashtbl.create i}
+  let default = create 1
+  let new_module h name inputs outputs =
+    Hashtbl.add h.arguments name (inputs,outputs)
+
+  let add_aiger h name aiger = 
+    Hashtbl.add h.aigers name aiger
+
+  let add_game h name game = 
+    Hashtbl.add h.games name game
 
   let find h x = Hashtbl.find h x
-  let find_arguments h name = 
-    let (i,o,_) = find h name in o @ i
+  let find_arguments_exn h name = 
+    let (i,o) = find h.arguments name in o @ i
 
+  let find_arguments h name = 
+    try
+      let (i,o) = find h.arguments name in Some (o @ i)
+    with Not_found -> None
+
+  let find_aiger_exn h name = find h.aigers name 
   let find_aiger h name = 
-    let (_,_,a) = find h name in a
+    try Some (find h.aigers name)
+    with Not_found -> None
+
+  let find_game_exn h name = find h.games name
+  let find_game h name = 
+    try Some (find h.games name)
+    with Not_found -> None
 end
 
-let calls_to_aiger ?(environment=Env.default) t = 
+let calls_to_aiger ?(env=Env.default) t = 
   if t.module_calls = [] then None
   else
     Some 
@@ -167,11 +216,27 @@ let calls_to_aiger ?(environment=Env.default) t =
 	List.fold_left 
 	  (fun aiger (module_name,arguments) ->
 	   Common.debug ("Calling "^module_name);
-	   let renaming = List.combine (Env.find_arguments environment module_name) arguments in
+	   let renaming = List.combine (Env.find_arguments_exn env module_name) arguments in
 	   if !Common.display_debug
 	   then List.iter (fun (a,b) -> Printf.printf "renaming %s into %s\n" a b) renaming;
 	   (* prerr_endline "we should also rename hidden outputs? so that there are no collisions"; *)
-	   let aig1 = Aiger.full_rename (Env.find_aiger environment module_name) renaming in
+	   let aig1 = Aiger.full_rename (Env.find_aiger_exn env module_name) renaming in
 	   Aiger.compose aiger aig1 
 	  ) Aiger.empty t.module_calls
       )
+
+let calls_to_game env t =
+  if t.module_calls = [] then None
+  else
+    let game_list = 
+      List.map 
+	(fun (module_name,arguments) ->
+	 Common.debug ("Calling "^module_name);
+	 let renaming = List.combine (Env.find_arguments_exn env module_name) arguments in
+	 if !Common.display_debug
+	 then List.iter (fun (a,b) -> Printf.printf "renaming %s into %s\n" a b) renaming;
+	 Game.rename (Env.find_game_exn env module_name) renaming
+	) t.module_calls
+    in
+    Some (Game.product game_list)
+  

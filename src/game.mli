@@ -22,3 +22,9 @@ type t = {
 val initial_state : t -> Cudd.bdd
 
 val of_aiger : Aiger.t -> string list -> string list -> string -> t
+
+(** The error of the product is the disjunction of the errors of each game *)
+val product : t list -> t
+
+(** Warning: we assume that the renaming does not rename inputs and all variables are Boolean *)
+val rename : t -> (string * string) list -> t

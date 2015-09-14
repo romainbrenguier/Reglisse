@@ -6,7 +6,10 @@ val attractor : AigerBdd.Circuit.t -> AigerBdd.variable list -> AigerBdd.variabl
 (** [trap aiger controllables uncontrollables failure] 
     Compute the set of states from which the controller cannot avoid going to the failure states. If the weak flag is set to true, this means that the controller cannot see the uncontrollable actions before taking its decision (ie controller = player 2).
 *)
-val trap : AigerBdd.Circuit.t -> AigerBdd.variable list -> AigerBdd.variable list -> ?weak:bool -> Cudd.bdd -> Region.t
+val trap : ?weak:bool -> Game.t -> Region.t
+
+(** Negation of the trap *)
+val safe : ?weak:bool -> Game.t -> Region.t
 
 (** Compute the same operator as the previous function, except that the actions are restricted by the last argument *)
 val attractor_with_restriction : AigerBdd.Circuit.t -> AigerBdd.variable list -> AigerBdd.variable list -> ?weak:bool -> Region.t -> Region.t -> Region.t

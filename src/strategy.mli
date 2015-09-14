@@ -1,6 +1,7 @@
 type t 
 
-(** Construct a BDD representing a winning strategy *)
+(** Construct a BDD representing a winning strategy that enters 
+ *  the region when possible and is not defined otherwise *)
 val of_region : AigerBdd.Circuit.t -> Region.t -> t
 
 val disj : t list -> t

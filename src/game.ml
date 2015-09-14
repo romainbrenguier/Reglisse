@@ -59,3 +59,46 @@ let of_aiger aig inputs outputs errors =
   let contr,uncontr = control aig inputs outputs in 
   let game = {aiger=aig; circuit=aigerBdd; contr=contr; uncontr=uncontr; err=unsafe} in
   game
+
+let product game_list =
+  let product = 
+    List.fold_left 
+      (fun accu g -> Aiger.compose accu g.aiger) Aiger.empty game_list
+  in
+  let circuit = AigerBdd.Circuit.of_aiger product in
+  let add_list set list = List.fold_left (fun a b -> AigerBdd.VariableSet.add b a) set list in
+  let all_inputs = 
+    List.fold_left
+      (fun accu g -> add_list (add_list accu g.contr) g.uncontr
+      ) AigerBdd.VariableSet.empty game_list
+  in
+
+  let contr_set =
+    List.fold_left
+      (fun accu g -> add_list accu g.contr) AigerBdd.VariableSet.empty game_list
+  in
+  let contr = AigerBdd.VariableSet.elements contr_set in
+  let uncontr = AigerBdd.VariableSet.elements (AigerBdd.VariableSet.diff all_inputs contr_set) in
+  let err = List.fold_left (fun a g -> Cudd.bddOr a g.err) (Cudd.bddFalse()) game_list in
+  {aiger=product; circuit=circuit;contr;uncontr;err}
+
+
+let rename game renaming = 
+  let aiger = Aiger.full_rename game.aiger renaming in
+  print_endline "in Game.rename : we could avoid a recomputation of the BDD here";
+  let circuit = AigerBdd.Circuit.of_aiger aiger in
+  (*let contr = List.map (fun x -> try List.assoc x renaming with Not_found -> x) game.contr in
+  let uncontr = List.map (fun x -> try List.assoc x renaming with Not_found -> x) game.uncontr in*)
+  let array_renaming = Array.of_list renaming in
+  let array1 = 
+    Array.init 
+      (List.length renaming)
+      (fun i -> AigerBdd.Variable.find (fst array_renaming.(i),0))
+  in
+  let array2 = 
+    Array.init 
+      (List.length renaming)
+      (fun i -> AigerBdd.Variable.find (snd array_renaming.(i),0))
+  in
+  let err = AigerBdd.Circuit.rename_configuration game.err array1 array2 in
+  {aiger;circuit;contr=game.contr;uncontr=game.uncontr;err}
