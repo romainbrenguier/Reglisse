@@ -20,3 +20,14 @@ module Test2
    never "{react & react2}";
       
 endmodule
+
+
+module Main
+  (
+   input  push, input push2, input react,
+   output react, output react2);
+
+   Test1(push,react);
+   Test2(push2,react,react2);
+   
+endmodule

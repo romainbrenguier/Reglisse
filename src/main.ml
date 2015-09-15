@@ -1,10 +1,25 @@
-let output_game = ref true
-let output_product = ref true
-
 type synthesis_method = Classical | Cooperative | Adversarial | Admissible
 
+let output_game = ref true
+let output_product = ref true
 let synthesis_method = ref Classical
 
+let arguments = 
+  let open Arg in
+  [ "-g", Set output_game, "Output the generated games in an aiger file";
+    "-p", Set output_product, "Output the global product in an aiger file";
+    "-d", Set Common.display_debug, "Display debug informations";
+    "-m", Int (function  
+	       | 0 -> synthesis_method := Classical
+	       | 1 -> synthesis_method := Cooperative
+	       | 2 -> synthesis_method := Adversarial
+	       | 3 -> synthesis_method := Admissible
+	       | _ -> failwith "in command line arguments: no synthesis method corresponding to this number"
+	     )
+    , "Set the synthesis method: 0 Classical | 1 Cooperative | 2 Adversarial | 3 Admissible"
+  ]
+
+    
 let write_aiger name aig =
   let output_file = name^".aag" in
   Timer.log ("writing aiger in "^output_file);
@@ -45,8 +60,6 @@ let make_controllable aiger controllables =
      else aig
     ) aiger aiger.Aiger.inputs
 
-exception NoMainModule 
-
 
 let classical_synthesis modules =
   let env = Reglisse.Env.create (List.length modules) in
@@ -78,6 +91,7 @@ let classical_synthesis modules =
     else
       (
 	Timer.log ("Module "^m.module_name);
+	Reglisse.Env.new_module env m.module_name m.inputs m.outputs;
 	match Reglisse.safety_to_game m with 
 	| None -> failwith "no safety"
 	| Some game -> Reglisse.Env.add_game env m.module_name game
@@ -178,11 +192,10 @@ let adversarial_synthesis games =
   failwith "Main.adversarial_synthesis: not implemented"
 
 
-let main = 
-  if Array.length Sys.argv < 2 then Printf.printf "usage: %s <file.rgl>\n" Sys.argv.(0);
-  let specs = Reglisse.parse_file Sys.argv.(1) in
+let main file = 
+  let specs = Reglisse.parse_file file in
   Cudd.init 100;
-  Timer.log ("Parsed file "^Sys.argv.(1));
+  Timer.log ("Parsed file "^file);
 
   let aig = match !synthesis_method with 
     | Classical -> classical_synthesis specs 
@@ -190,14 +203,15 @@ let main =
     | Adversarial -> adversarial_synthesis specs 
     | Admissible -> admissible_synthesis specs 
   in
-
   Timer.log "exporting to aiger";
-  write_aiger Sys.argv.(1) aig;
+  write_aiger file aig;
   Timer.log "exporting to verilog";
-  write_verilog Sys.argv.(1) "Main" aig
+  write_verilog file "Main" aig
 
 
   
+let parse_arguments =
+  Arg.parse arguments main "usage: ./reglisse <options> spec.rgl"
 
   
     
