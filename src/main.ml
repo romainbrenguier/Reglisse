@@ -8,6 +8,7 @@ let arguments =
   let open Arg in
   [ "-g", Set output_game, "Output the generated games in an aiger file";
     "-p", Set output_product, "Output the global product in an aiger file";
+    "-l", Set Timer.display_log, "Display logs";
     "-d", Set Common.display_debug, "Display debug informations";
     "-m", Int (function  
 	       | 0 -> synthesis_method := Classical
@@ -34,6 +35,7 @@ let write_verilog file module_name aig =
   Verilog.of_aiger module_name aig outch;
   close_out outch
 
+(*
 let merge_outputs aiger = 
   match aiger.Aiger.outputs with 
   | [] -> failwith "in Main.merge_outputs: no outputs"
@@ -59,43 +61,36 @@ let make_controllable aiger controllables =
        Aiger.rename aig [(syms,symo),("controllable_"^syms,symo)]
      else aig
     ) aiger aiger.Aiger.inputs
+  *)
 
+exception Unrealizable
 
 let classical_synthesis modules =
+  Timer.log "Classical synthesis";
+  let open Reglisse in
   let env = Reglisse.Env.create (List.length modules) in
   let rec aux m =
-    if m.Reglisse.module_name = "Main"
-    then 
-      (
-	Timer.log "Composing in the Main module";
-	match Reglisse.calls_to_game env m with 
-	| None -> failwith "Main is not a compositional module"
-	| Some game ->
-	   Timer.log "Product computed";
-	   if !output_product
-	   then (
-	     Timer.log "writing product.aag";
-	     prerr_endline "Warning: not sure what we write here";
-	     (* let aig = merge_outputs product.aiger in
-    let aig = make_controllable product.aiger product.contr in *)
-	     Aiger.write_to_file game.Game.aiger "product.aag";
-	   );
-	   let winning = Attractor.safe game in
-	   if Region.includes_initial winning 
-	   then Timer.log "realizable"
-	   else failwith "unrealizable";
-	   let strat = Strategy.of_region game.circuit winning in
-	   let aiger_strat = Strategy.to_aiger game.aiger strat game.contr game.uncontr in
-	   Reglisse.Env.add_aiger env m.module_name aiger_strat
-      )
-    else
-      (
-	Timer.log ("Module "^m.module_name);
-	Reglisse.Env.new_module env m.module_name m.inputs m.outputs;
-	match Reglisse.safety_to_game m with 
-	| None -> failwith "no safety"
-	| Some game -> Reglisse.Env.add_game env m.module_name game
-      )
+    Timer.log ("Module "^m.module_name);
+    Reglisse.Env.new_module env m.module_name m.inputs m.outputs;
+    match Reglisse.safety_to_game m with 
+    | Some game -> 
+       Timer.log "Atomic module";
+       Reglisse.Env.add_game env m.module_name game
+    | None -> 
+       Timer.log "Composition module";
+       match Reglisse.calls_to_game env m with 
+       | None -> failwith "in Main.classical_synthesis: Reglisse.calls_to_game failed"
+       | Some game ->
+	  let open Game in
+	  Timer.log "Product computed";
+	  if !output_product then write_aiger "product" game.Game.aiger;
+	  let winning = Attractor.safe game in
+	  if Region.includes_initial winning 
+	  then Timer.log "realizable"
+	  else (Timer.log "unrealizable"; raise Unrealizable);
+	  let strat = Strategy.of_region game.circuit winning in
+	  let aiger_strat = Strategy.to_aiger game.aiger strat game.contr game.uncontr in
+	  Env.add_aiger env m.module_name aiger_strat
   in 
   List.iter aux modules;
   match Reglisse.Env.find_aiger env "Main"
@@ -103,8 +98,9 @@ let classical_synthesis modules =
      | None -> failwith "Module Main not found"
 
 
-let cooperative_synthesis_exn games = 
-  let env = Reglisse.Env.create (List.length games) in
+let cooperative_synthesis modules =
+  let open Reglisse in
+  let env = Reglisse.Env.create (List.length modules) in
   let _,strats = 
     List.fold_left
       (fun (i,strats) modul -> 
@@ -140,17 +136,49 @@ let cooperative_synthesis_exn games =
 	then Timer.log "coop realizable"
 	else failwith "unrealizable";
 	Reglisse.Env.add_game env modul.module_name game;
-	let new_strat = Strategy.of_region game.circuit coop in
+	let new_strat = Strategy.of_region game.Game.circuit coop in
 	i+1, new_strat :: strats
-      ) (0,[]) games
+      ) (0,[]) modules
   in 
   (* Strategy.conj strats;*)
   match Reglisse.Env.find_aiger env "Main"
   with Some x -> x | None -> failwith "Module Main not found"
 
 
-let admissible_synthesis games =
-  let env = Reglisse.Env.create (List.length games) in
+let adversarial_synthesis modules =
+  Timer.log "Adversarial synthesis";
+  let open Reglisse in
+  let env = Reglisse.Env.create (List.length modules) in
+  let rec aux m =
+    Timer.log ("Module "^m.module_name);
+    Reglisse.Env.new_module env m.module_name m.inputs m.outputs;
+    match Reglisse.safety_to_game m with 
+    | Some game -> 
+       let open Game in
+       Timer.log "Atomic module";
+       let winning = Attractor.safe game in
+       if Region.includes_initial winning 
+       then Timer.log "realizable"
+       else (Timer.log "unrealizable"; raise Unrealizable);
+       let strat = Strategy.of_region game.circuit winning in
+       let aiger_strat = Strategy.to_aiger game.aiger strat game.contr game.uncontr in
+       Env.add_aiger env m.module_name aiger_strat
+
+    | None -> 
+       Timer.log "Composition module";
+       match Reglisse.calls_to_aiger ~env m with 
+       | None -> failwith "in Main.adversarial_synthesis: Reglisse.calls_to_aiger failed"
+       | Some aiger -> Env.add_aiger env m.module_name aiger
+  in 
+  List.iter aux modules;
+  match Reglisse.Env.find_aiger env "Main"
+  with Some x -> x 
+     | None -> failwith "Module Main not found"
+
+
+
+let admissible_synthesis modules =
+  let env = Reglisse.Env.create (List.length modules) in
   
   print_endline "assume admissible synthesis";
   let aig = Reglisse.Env.find_game_exn env "Main" in
@@ -187,9 +215,8 @@ let admissible_synthesis games =
   aig_strategy*)
 
 
+
     
-let adversarial_synthesis games =
-  failwith "Main.adversarial_synthesis: not implemented"
 
 
 let main file = 
@@ -199,7 +226,7 @@ let main file =
 
   let aig = match !synthesis_method with 
     | Classical -> classical_synthesis specs 
-    | Cooperative -> cooperative_synthesis_exn specs
+    | Cooperative -> cooperative_synthesis specs
     | Adversarial -> adversarial_synthesis specs 
     | Admissible -> admissible_synthesis specs 
   in

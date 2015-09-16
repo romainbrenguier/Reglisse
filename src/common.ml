@@ -40,7 +40,6 @@ let display_infos = ref false
 let display_debug = ref false
 let display_warnings = ref false
 
-
 let infos string = 
   if !display_infos then print_endline string
 
