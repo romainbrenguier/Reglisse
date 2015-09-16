@@ -1,6 +1,5 @@
 (** Parse an aiger file and return two lists, one containing the controllables inputs and the other the uncontrollable inputs. *)
 val read_from_file : string -> (Aiger.t * Aiger.lit list * Aiger.lit list)
-val of_aiger : Aiger.t -> (Aiger.t * Aiger.lit list * Aiger.lit list)
 
 val controllable_name : string -> bool
 (** List of controllables and uncontrollables inputs in the AIGER file *)
@@ -21,7 +20,7 @@ type t = {
 
 val initial_state : t -> Cudd.bdd
 
-val of_aiger : Aiger.t -> string list -> string list -> string -> t
+val of_aiger : aig:Aiger.t -> inputs:string list -> outputs:string list -> errors:string list -> t
 
 (** The error of the product is the disjunction of the errors of each game *)
 val product : t list -> t

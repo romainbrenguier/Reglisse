@@ -89,8 +89,7 @@ let parse stream =
   | [< 'Genlex.Kwd "never" ; 'Genlex.String regexp; 'Genlex.Kwd ";" >] ->
      parse_conditions (add_safety m (Never regexp)) stream
   | [< 'Genlex.Kwd "eventually" ; 'Genlex.String regexp; 'Genlex.Kwd ";" >] ->
-     failwith "eventually not supported";
-     parse_conditions (add_eventually m regexp) stream
+     failwith "eventually not supported"
 
   | [< 'Genlex.Kwd "if" ; 'Genlex.String regexp; 'Genlex.Kwd "then"; 'Genlex.String seq; x = parse_else >] ->
      (match x with None -> parse_conditions (add_safety m (If_then (regexp,seq))) stream
@@ -169,7 +168,7 @@ let safety_to_aiger ?(prefix="never") t =
 let safety_to_game modul = 
   let prefix = "never_"^modul.module_name in
   match safety_to_aiger ~prefix modul with
-  | Some aiger -> Some ( Game.of_aiger aiger modul.inputs modul.outputs (prefix^"_accept"))
+  | Some aig -> Some ( Game.of_aiger ~aig ~inputs:modul.inputs ~outputs:modul.outputs ~errors:[prefix^"_accept"])
   | None -> None
 
 module Env = 
@@ -225,18 +224,44 @@ let calls_to_aiger ?(env=Env.default) t =
 	  ) Aiger.empty t.module_calls
       )
 
-let calls_to_game env t =
+
+let add_prefix_to_aiger ~prefix ~aig =
+  let open Aiger in
+  let symbols = 
+    SymbolMap.fold 
+      (fun (s,i) l accu -> 
+       SymbolMap.add (prefix^s,i) l accu
+      ) aig.symbols SymbolMap.empty 
+  in
+  let abstract = LitMap.map (fun (s,i) -> (prefix^s,i)) aig.abstract in
+  {aig with symbols; abstract }
+
+
+let calls_to_game env modules t =
+  let cnt = ref 0 in
+  let prefix () = "call_"^string_of_int !cnt ^"_" in
   if t.module_calls = [] then None
   else
-    let game_list = 
+    let game_error_list = 
       List.map 
 	(fun (module_name,arguments) ->
+	 incr cnt;
 	 Common.debug ("Calling "^module_name);
-	 let renaming = List.combine (Env.find_arguments_exn env module_name) arguments in
-	 if !Common.display_debug
-	 then List.iter (fun (a,b) -> Printf.printf "renaming %s into %s\n" a b) renaming;
-	 Game.rename (Env.find_game_exn env module_name) renaming
+	 let m = Hashtbl.find modules module_name in
+	 let prefix = prefix()^module_name in
+	 match safety_to_aiger ~prefix m with
+	 | None -> failwith "in Reglisse.calls_to_game: could not convert the safety condition to an AIG circuit"
+	 | Some aiger -> 
+	    let renaming = List.combine (Env.find_arguments_exn env module_name) arguments in
+	    if !Common.display_debug
+	    then List.iter (fun (a,b) -> Printf.printf "renaming %s into %s\n" a b) renaming;
+	    Aiger.full_rename aiger renaming, (prefix^"_accept")
 	) t.module_calls
     in
-    Some (Game.product game_list)
+    let game_list = List.map fst game_error_list in
+    let error_list = List.map snd game_error_list in
+    let aig = List.fold_left Aiger.compose (List.hd game_list) (List.tl game_list) in
+    let game = Game.of_aiger ~aig ~inputs:t.inputs ~outputs:t.outputs ~errors:error_list in
+    Some game
+
   

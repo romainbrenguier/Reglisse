@@ -426,11 +426,11 @@ let automaton_to_aiger ?(prefix="") auto =
 
 let to_aiger ?(prefix="") expr =
   let auto = non_det_of_expr expr in
-  Common.debug (automaton_to_string auto);
+  (* Common.debug (automaton_to_string auto);*)
   let we_auto = remove_epsilon auto in
-  Common.debug (automaton_to_string we_auto);
+  (* Common.debug (automaton_to_string we_auto);*)
   let co_auto = coaccessible we_auto in
-  Common.debug (automaton_to_string co_auto);
+  (* Common.debug (automaton_to_string co_auto);*)
   (* Cudd.init 100; *)
   automaton_to_aiger ~prefix co_auto
 

@@ -53,9 +53,14 @@ let control aiger inputs outputs =
 let initial_state g = 
   Region.initial_state g.aiger
 
-let of_aiger aig inputs outputs errors = 
+let of_aiger ~aig ~inputs ~outputs ~errors = 
   let aigerBdd = AigerBdd.Circuit.of_aiger aig in
-  let unsafe = AigerBdd.Variable.to_bdd (AigerBdd.Variable.find (AigerBdd.of_aiger_symbol (errors,Some 0))) in 
+  let error_bdds =
+    List.map
+      (fun x -> AigerBdd.Variable.to_bdd (AigerBdd.Variable.find (AigerBdd.of_aiger_symbol (x,Some 0))))
+      errors
+  in 
+  let unsafe = List.fold_left Cudd.bddOr (Cudd.bddFalse()) error_bdds in
   let contr,uncontr = control aig inputs outputs in 
   let game = {aiger=aig; circuit=aigerBdd; contr=contr; uncontr=uncontr; err=unsafe} in
   game
@@ -65,6 +70,7 @@ let product game_list =
     List.fold_left 
       (fun accu g -> Aiger.compose accu g.aiger) Aiger.empty game_list
   in
+  let product = AigerBdd.reorder_aiger product in
   let circuit = AigerBdd.Circuit.of_aiger product in
   let add_list set list = List.fold_left (fun a b -> AigerBdd.VariableSet.add b a) set list in
   let all_inputs = 

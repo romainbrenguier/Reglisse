@@ -19,15 +19,19 @@ module Variable =
 struct
   type t = int
 
-  let to_string v = "Variable("^string_of_int v^")"
 
   let compare a b = a - b
   let last_variable = ref 0
   let table_variable = Hashtbl.create 20
+  let reverse_table = Hashtbl.create 20
+
+  let to_string v = "Variable("^string_of_int v^","^symbol_to_string (Hashtbl.find reverse_table v)^")"
+
   let new_variable symbol = 
     let i = !last_variable in
     last_variable := !last_variable + 2;
     Hashtbl.add table_variable symbol i;
+    Hashtbl.add reverse_table i symbol;
     (* (* Debug *) Printf.printf "new variable %s -> %d\n" (symbol_to_string symbol) i; *)
     i
     

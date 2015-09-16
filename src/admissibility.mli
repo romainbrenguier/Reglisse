@@ -16,6 +16,9 @@ type value = Winning | CoopWinning | Help | Losing | NotWinning | NotLosing
 *)
 val value : ?weak:bool -> Game.t -> value -> Region.t
 
+(** States from which there is no hope of winning. *)
+val losing : Game.t -> Region.t
+
 val strategies : AigerBdd.Circuit.t -> (value -> Region.t) -> Strategy.t
 
 val admissible_strategies : Game.t -> int * Strategy.t

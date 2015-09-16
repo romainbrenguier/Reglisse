@@ -64,26 +64,36 @@ let make_controllable aiger controllables =
   *)
 
 exception Unrealizable
+exception NoMainModule
 
 let classical_synthesis modules =
   Timer.log "Classical synthesis";
   let open Reglisse in
-  let env = Reglisse.Env.create (List.length modules) in
+  let nb_modules = List.length modules in
+  let env = Reglisse.Env.create nb_modules in
+  let module_tab = Hashtbl.create nb_modules in
   let rec aux m =
     Timer.log ("Module "^m.module_name);
     Reglisse.Env.new_module env m.module_name m.inputs m.outputs;
     match Reglisse.safety_to_game m with 
     | Some game -> 
        Timer.log "Atomic module";
-       Reglisse.Env.add_game env m.module_name game
+       (* Reglisse.Env.add_game env m.module_name game*)
+       Hashtbl.add module_tab m.module_name m
     | None -> 
        Timer.log "Composition module";
-       match Reglisse.calls_to_game env m with 
+       match Reglisse.calls_to_game env module_tab m with 
        | None -> failwith "in Main.classical_synthesis: Reglisse.calls_to_game failed"
        | Some game ->
 	  let open Game in
 	  Timer.log "Product computed";
 	  if !output_product then write_aiger "product" game.Game.aiger;
+	  if !Common.display_debug then 
+	    (print_endline "Controllables:\n";
+	     List.iter (fun x -> print_endline (AigerBdd.Variable.to_string x)) game.contr;
+	     print_endline "Uncontrollables:\n";
+	     List.iter (fun x -> print_endline (AigerBdd.Variable.to_string x)) game.uncontr
+	    );
 	  let winning = Attractor.safe game in
 	  if Region.includes_initial winning 
 	  then Timer.log "realizable"
@@ -94,55 +104,53 @@ let classical_synthesis modules =
   in 
   List.iter aux modules;
   match Reglisse.Env.find_aiger env "Main"
-  with Some x -> x 
-     | None -> failwith "Module Main not found"
+  with Some x -> x | None -> raise NoMainModule
 
 
 let cooperative_synthesis modules =
+  Timer.log "Cooperative synthesis";
   let open Reglisse in
-  let env = Reglisse.Env.create (List.length modules) in
-  let _,strats = 
-    List.fold_left
-      (fun (i,strats) modul -> 
-       Timer.log ("module "^modul.Reglisse.module_name);
-       (* be carreful here "never" gets an integer added *)
-       let prefix = "never_"^string_of_int i in
-       match Reglisse.safety_to_aiger ~prefix modul with
-       | None -> 
-	  prerr_endline "Warning: compositional module"; 
-	  (*let Some aig = Reglisse.calls_to_game env modul in
-	let game = Game.of_aiger aig modul.inputs modul.outputs (prefix^"_accept") in
-	let winning = Region.negation (Attractor.trap_with_restriction game strat Admissibility.CoopWinning) in
-	if Region.includes_initial winning
-	then Timer.log "realizable"
-	else failwith "unrealizable";
-	let strat = Strategy.of_region game.circuit winning in
-	let aiger_strat = Strategy.to_aiger game.aiger strat game.contr game.uncontr in*)
-	  ( match Reglisse.calls_to_aiger ~env modul with 
-	    | Some aig ->
-	       Reglisse.Env.add_aiger env modul.module_name aig;
-	       (* Reglisse.add_game env modul.module_name game;*)
-	       write_aiger modul.module_name aig; 
-	       write_verilog modul.module_name modul.module_name aig;
-	       prerr_endline "we should update the strategies";
-	       i+1,strats
-	    | None -> failwith "cannot convert calls to aiger"
-	  )
-	    
-     | Some aiger ->
-	let game = Game.of_aiger aiger modul.inputs modul.outputs (prefix^"_accept") in
-	let coop = Admissibility.value game Admissibility.CoopWinning in
-	if Region.includes_initial coop
-	then Timer.log "coop realizable"
-	else failwith "unrealizable";
-	Reglisse.Env.add_game env modul.module_name game;
-	let new_strat = Strategy.of_region game.Game.circuit coop in
-	i+1, new_strat :: strats
-      ) (0,[]) modules
+  let nb_modules = List.length modules in
+  let env = Reglisse.Env.create nb_modules in
+  let module_tab = Hashtbl.create nb_modules in
+  (* records cooperative strategies for each module *)
+  let strats = Hashtbl.create nb_modules in
+  let aux m = 
+    Timer.log ("Module "^m.module_name);
+    Reglisse.Env.new_module env m.module_name m.inputs m.outputs;
+    match Reglisse.safety_to_game m with 
+    | Some game -> 
+       Timer.log "Atomic module";
+       let coop = Region.negation (Admissibility.losing game) in
+       if Region.includes_initial coop
+       then Timer.log "coop realizable"
+       else (Timer.log "unrealizable"; raise Unrealizable);
+       Reglisse.Env.add_game env m.module_name game;
+       let new_strat = Strategy.of_region game.Game.circuit coop in
+       Hashtbl.add module_tab m.module_name m;
+       Hashtbl.add strats m.module_name new_strat
+
+    | None -> 
+       Timer.log "Composition module";
+       match Reglisse.calls_to_game env module_tab m with 
+       | None -> failwith "in Main.classical_synthesis: Reglisse.calls_to_game failed"
+       | Some game ->
+	  let open Game in
+	  Timer.log "Product computed";
+	  if !output_product then write_aiger "product" game.Game.aiger;
+	  Timer.log "... computing winning region with some restriction ... /!\\ no restriction implemented for now";
+	  let reg1 = Region.tt () in let reg2 = Region.tt () in
+	  let winning = Region.negation (Attractor.trap_with_restriction game.circuit game.contr game.uncontr reg1 reg2) in
+	  if Region.includes_initial winning 
+	  then Timer.log "realizable"
+	  else (Timer.log "unrealizable"; raise Unrealizable);
+	  let strat = Strategy.of_region game.circuit winning in
+	  let aiger_strat = Strategy.to_aiger game.aiger strat game.contr game.uncontr in
+	  Env.add_aiger env m.module_name aiger_strat
   in 
-  (* Strategy.conj strats;*)
+  List.iter aux modules;
   match Reglisse.Env.find_aiger env "Main"
-  with Some x -> x | None -> failwith "Module Main not found"
+  with Some x -> x | None -> raise NoMainModule
 
 
 let adversarial_synthesis modules =
@@ -172,9 +180,7 @@ let adversarial_synthesis modules =
   in 
   List.iter aux modules;
   match Reglisse.Env.find_aiger env "Main"
-  with Some x -> x 
-     | None -> failwith "Module Main not found"
-
+  with Some x -> x | None -> raise NoMainModule
 
 
 let admissible_synthesis modules =

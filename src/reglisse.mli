@@ -59,7 +59,7 @@ end
 val calls_to_aiger : ?env:Env.t -> t -> Aiger.t option
 
 
-val calls_to_game : Env.t -> t -> Game.t option
+val calls_to_game : Env.t -> (string,t) Hashtbl.t -> t -> Game.t option
 
 
 
