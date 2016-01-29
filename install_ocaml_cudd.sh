@@ -15,7 +15,7 @@ echo " Unpacking Ocaml-CUDD..."
 rm -rf $OCAML_CUDD
 mv master.zip $OCAML_CUDD_ARCHIVE
 unzip $OCAML_CUDD_ARCHIVE
-mv $OCAML_CUDD-master $OCAML_CUDD-master
+mv $OCAML_CUDD-master $OCAML_CUDD
 
 echo " Compiling Ocaml-CUDD..."
 (cd $OCAML_CUDD; ./install_cudd.sh; make)
