@@ -16,24 +16,28 @@ module Light
  (
   input  fill1,
   input  fill2,
+  input  fill3,
+  input  fill4,
   output light
   );
 
-   never "{ ! light <-> (fill1 | fill2 )}";
+   never "{ ! light <-> (fill1 | fill2 | fill3 | fill4 )}";
 
 endmodule
 
 module Main
   (
-   input push1, input push2, 
-   output fill1, output  fill2, 
-   output empty1, output  empty2, 
+   input push1, input push2,  input push3,  input push4,  
+   output fill1, output  fill2, output  fill3, output  fill4, 
+   output empty1, output  empty2, output  empty3, output  empty4, 
    output light
    );
 
    Tank(push1,fill1,empty1);
    Tank(push2,fill2,empty2);
-   Light(fill1,fill2,light);
+   Tank(push3,fill3,empty3);
+   Tank(push4,fill4,empty4);
+   Light(fill1,fill2,fill3,fill4,light);
    
    
 endmodule

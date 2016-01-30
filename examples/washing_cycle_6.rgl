@@ -1,0 +1,47 @@
+module Tank
+  (
+   input  push1,
+   output fill1,
+   output empty1
+   );
+
+   if "{true} * {push1} {! fill1}" then "{fill1}";
+   never "{!push1} 2 {fill1}";
+   if "{true} * {fill1}" then " {!empty1}{empty1}";
+
+endmodule
+
+
+module Light
+ (
+  input  fill1,
+  input  fill2,
+  input  fill3,
+  input  fill4,
+  input  fill5,
+  input  fill6,
+  output light
+  );
+
+   never "{ ! light <-> (fill1 | fill2 | fill3 | fill4 | fill5 | fill6 )}";
+
+endmodule
+
+module Main
+  (
+   input push1, input push2,  input push3,  input push4,  input push5,  input push6,    
+   output fill1, output  fill2, output  fill3, output  fill4, output  fill5, output  fill6, 
+   output empty1, output  empty2, output  empty3, output  empty4, output  empty5, output  empty6, 
+   output light
+   );
+
+   Tank(push1,fill1,empty1);
+   Tank(push2,fill2,empty2);
+   Tank(push3,fill3,empty3);
+   Tank(push4,fill4,empty4);
+   Tank(push5,fill5,empty5);
+   Tank(push6,fill6,empty6);
+   Light(fill1,fill2,fill3,fill4,fill5,fill6,light);
+   
+   
+endmodule
