@@ -12,7 +12,7 @@ module Scheduler
    
 endmodule
 
-module Driver1
+module Driver
   (
    input a1,
    input g1,
@@ -23,13 +23,15 @@ module Driver1
    never "{r1} ({!g1}*) {r1}";
 endmodule
 
-module Driver2
+module Main
   (
-   input a2,
-   input g2,
-   output r2
+   input  a1, input a2,
+   output g1, output g2,
+   output r1, output r2
    );
 
-   never "{a2} {!r2} 4";
-   never "{r2} ({!g2}*) {r2}";
+   Driver(a1,g1,r1);
+   Driver(a2,g2,r2);
+   Scheduler(r1,r2,g1,g2);
 endmodule
+   
