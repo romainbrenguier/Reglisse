@@ -2,6 +2,7 @@ type synthesis_method = Classical | Cooperative | Adversarial | Admissible
 
 let output_game = ref true
 let output_product = ref true
+let display_total_time = ref false
 let synthesis_method = ref Classical
 
 let arguments = 
@@ -9,6 +10,8 @@ let arguments =
   [ "-g", Set output_game, "Output the generated games in an aiger file";
     "-p", Set output_product, "Output the global product in an aiger file";
     "-l", Set Timer.display_log, "Display logs";
+    "-t", Set display_total_time, "Display total time";
+    "-w", Set Timer.display_warning, "Display warnings";
     "-d", Set Common.display_debug, "Display debug informations";
     "-m", Int (function  
 	       | 0 -> synthesis_method := Classical
@@ -66,6 +69,23 @@ let make_controllable aiger controllables =
 exception Unrealizable
 exception NoMainModule
 
+(* compute an aiger representation of a winning strategy in the game *)
+let general_synthesis game =
+  let open Game in
+  if !Common.display_debug then 
+    (print_endline "Controllables:\n";
+     List.iter (fun x -> print_endline (AigerBdd.Variable.to_string x)) game.contr;
+     print_endline "Uncontrollables:\n";
+     List.iter (fun x -> print_endline (AigerBdd.Variable.to_string x)) game.uncontr
+    );
+  let winning = Attractor.safe game in
+  if Region.includes_initial winning 
+  then Timer.log "realizable"
+  else (Timer.log "unrealizable"; raise Unrealizable);
+  let strat = Strategy.of_region game.circuit winning in
+  let aiger_strat = Strategy.to_aiger game.aiger strat game.contr game.uncontr in
+  aiger_strat
+
 let classical_synthesis modules =
   Timer.log "Classical synthesis";
   let open Reglisse in
@@ -75,36 +95,41 @@ let classical_synthesis modules =
   let rec aux m =
     Timer.log ("Module "^m.module_name);
     Reglisse.Env.new_module env m.module_name m.inputs m.outputs;
-    match Reglisse.safety_to_game m with 
-    | Some game -> 
-       Timer.log "Atomic module";
-       (* Reglisse.Env.add_game env m.module_name game*)
-       Hashtbl.add module_tab m.module_name m
-    | None -> 
-       Timer.log "Composition module";
-       match Reglisse.calls_to_game env module_tab m with 
-       | None -> failwith "in Main.classical_synthesis: Reglisse.calls_to_game failed"
-       | Some game ->
-	  let open Game in
+    if Reglisse.is_atomic m 
+    then
+      (Timer.log "Atomic module";
+       (* Reglisse.Env.add_game env m.module_name game;*)
+       Hashtbl.add module_tab m.module_name m)
+    else
+      (
+	Timer.log "Composition module";
+	match Reglisse.calls_to_game env module_tab m with 
+	| None -> failwith "in Main.classical_synthesis: Reglisse.calls_to_game failed"
+	| Some game ->
 	  Timer.log "Product computed";
 	  if !output_product then write_aiger "product" game.Game.aiger;
-	  if !Common.display_debug then 
-	    (print_endline "Controllables:\n";
-	     List.iter (fun x -> print_endline (AigerBdd.Variable.to_string x)) game.contr;
-	     print_endline "Uncontrollables:\n";
-	     List.iter (fun x -> print_endline (AigerBdd.Variable.to_string x)) game.uncontr
-	    );
-	  let winning = Attractor.safe game in
-	  if Region.includes_initial winning 
-	  then Timer.log "realizable"
-	  else (Timer.log "unrealizable"; raise Unrealizable);
-	  let strat = Strategy.of_region game.circuit winning in
-	  let aiger_strat = Strategy.to_aiger game.aiger strat game.contr game.uncontr in
+	  let aiger_strat = general_synthesis game in
 	  Env.add_aiger env m.module_name aiger_strat
+      )
+
+(*
+  match Reglisse.safety_to_game m with 
+    | Some game -> 
+      | None -> 
+*)
   in 
   List.iter aux modules;
   match Reglisse.Env.find_aiger env "Main"
-  with Some x -> x | None -> raise NoMainModule
+  with Some x -> x | None -> 
+    Timer.warning "No Main module. If there are more than one module, one of them must be named Main.";
+    match modules with 
+    | [m] -> (* m should be an atomic module *)
+      (
+	match Reglisse.safety_to_game m with
+	| Some game -> general_synthesis game
+	| None -> failwith "in Main.classical_synthesis: Reglisse.safety_to_game failed"
+      )
+    | _ -> raise NoMainModule
 
 
 let cooperative_synthesis modules =
@@ -239,7 +264,8 @@ let main file =
   Timer.log "exporting to aiger";
   write_aiger file aig;
   Timer.log "exporting to verilog";
-  write_verilog file "Main" aig
+  write_verilog file "Main" aig;
+  if !display_total_time then (Timer.display (); print_newline ())
 
 
   

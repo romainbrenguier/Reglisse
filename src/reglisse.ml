@@ -56,7 +56,7 @@ let add_output m output = {m with outputs=output :: m.outputs}
 let add_safety m never = {m with safety=never :: m.safety}
 let add_eventually m eventually = {m with eventually=eventually :: m.eventually}
 let add_call m c = { m with module_calls = c :: m.module_calls }
-
+let is_atomic m = m.module_calls = []
 
 let lexer = Genlex.make_lexer
   ["module";"endmodule";"never";"enventually";
@@ -240,7 +240,7 @@ let add_prefix_to_aiger ~prefix ~aig =
 let calls_to_game env modules t =
   let cnt = ref 0 in
   let prefix () = "call_"^string_of_int !cnt ^"_" in
-  if t.module_calls = [] then None
+  if t.module_calls = [] then (Timer.warning "no module calls"; None)
   else
     let game_error_list = 
       List.map 

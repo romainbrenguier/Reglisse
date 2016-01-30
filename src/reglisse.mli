@@ -24,6 +24,8 @@ val add_input : t -> string -> t
 val add_output : t -> string -> t
 val add_safety : t -> safety -> t
 val add_call : t -> (string * string list) -> t
+(** return true if the module does not contain calls *)
+val is_atomic : t -> bool
 
 val lexer : char Stream.t -> Genlex.token Stream.t
 
