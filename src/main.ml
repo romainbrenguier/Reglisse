@@ -239,45 +239,72 @@ let adversarial_synthesis modules =
 
 
 let admissible_synthesis modules =
-  let env = Reglisse.Env.create (List.length modules) in
-  
-  print_endline "assume admissible synthesis";
-  let aig = Reglisse.Env.find_game_exn env "Main" in
-  let product_aig,product,controllables,winning = 
-    Admissibility.compositional_synthesis [aig]
-  in
-  
-  if Region.includes_initial winning
-  then print_endline "realizable"
-  else failwith "unrealizable";
+  Timer.log "Assume admissible synthesis";
+  let open Reglisse in
+  let nb_modules = List.length modules in
+  let env = Reglisse.Env.create nb_modules in
+  let module_tab = Hashtbl.create nb_modules in
+  (* records admissible strategies for each module *)
+  let strats = Hashtbl.create nb_modules in
+  let aux m = 
+    Timer.log ("Module "^m.module_name);
+    Reglisse.Env.new_module env m.module_name m.inputs m.outputs;
+    match Reglisse.safety_to_game m with 
+    | Some game -> 
+       Timer.log "Atomic module";
+       let value,adm = Admissibility.admissible_strategies game in
+       (match value with
+       | 0 -> Timer.log "Cooperatively realizable"
+       | 1 -> Timer.log "Adversarialy realizable"
+       | _ -> Timer.log "unrealizable"; raise Unrealizable);
+       Reglisse.Env.add_game env m.module_name game;
+       (*let new_strat = Strategy.of_region game.Game.circuit 
+	 (* Why do we need to take this ? *)
+	 (Region.union (Region.of_bdds (Cudd.bddTrue()) (Cudd.bddFalse())) coop) 
+       in*)
+       Hashtbl.add module_tab m.module_name m;
+       Hashtbl.add strats m.module_name adm
 
-  failwith "Main.admissible_synthesis not implemented"
+    | None -> 
+       Timer.log "Composition module";
+       match Reglisse.calls_to_game env module_tab m with 
+       | None -> failwith "in Main.classical_synthesis: Reglisse.calls_to_game failed"
+       | Some (game,call_renaming_list) ->
+	  let open Game in
+	  Timer.log "Product computed";
+	  if !output_product then write_aiger "product" game.Game.aiger;
+	  Timer.log "Computing winning region with some restriction";
+	  let strategies = call_renaming_list |> 
+	      List.map (fun {call;renaming} -> 
+	      let strat = 
+		try Hashtbl.find strats call 
+		with Not_found -> Timer.warning ("No strategy found for module "^call); 
+		  Strategy.all ()
+	      in Strategy.rename strat renaming 
+	      )
+	  in
+	  let strategy = Strategy.conj strategies in
+	  let winning = Region.negation (Attractor.trap ~strategy game) in
+	  if Region.includes_initial winning 
+	  then Timer.log "realizable"
+	  else (Timer.log "unrealizable"; raise Unrealizable);
+	  let strat = Strategy.of_region game.circuit winning in
+	  let aiger_strat = Strategy.to_aiger game.aiger strat game.contr game.uncontr in
+	  Env.add_aiger env m.module_name aiger_strat
+  in 
+  match modules with 
+  | [m] ->
+    (
+      match Reglisse.safety_to_game m with
+      | Some game -> general_synthesis game
+      | None -> failwith "in Main.admissible_synthesis: Reglisse.safety_to_game failed"
+    )
 
-  (*
-  let value,adm = Admissibility.admissible_strategies game in
-  Hashtbl.add tab_adm modul.module_name adm;
-  Timer.log ("Value for module "^modul.module_name^" = "^string_of_int value);
-  if value = 1 
-  then 
-    let aig_strategy = Strategy.to_aiger aiger adm game.Game.contr game.Game.uncontr in
-    let aig_strategy = Aiger.hide aig_strategy (prefix^"_accept",Some 0) in
-    Reglisse.Env.new_module env modul.module_name modul.inputs modul.outputs;
-    Reglisse.Env.add_aiger env modul.module_name aig_strategy;
-    write_aiger modul.module_name aig_strategy; 
-    write_verilog modul.module_name modul.module_name aig_strategy		       
-  else ();
+  | _ ->
+    List.iter aux modules;
+    match Reglisse.Env.find_aiger env "Main"
+    with Some x -> x | None -> raise NoMainModule
 
-  Timer.log "computing strategy";
-  let strategy = Strategy.of_region product winning in
-  let contr = List.fold_left (fun a b -> AigerBdd.VariableSet.add b a) AigerBdd.VariableSet.empty aig.contr in
-  let uncontr = List.fold_left (fun a b -> AigerBdd.VariableSet.add b a) AigerBdd.VariableSet.empty aig.uncontr in
-  let aig_strategy = Strategy.to_aiger product_aig strategy (AigerBdd.VariableSet.elements contr) (AigerBdd.VariableSet.elements uncontr) in
-  Timer.log "assume_admissible_synthesis finished";
-  aig_strategy*)
-
-
-
-    
 
 
 let main file = 

@@ -39,7 +39,8 @@ let value ?(weak=false) g =
 
 
 let strategies aig_bdd v =
-  let stratW = Strategy.of_region aig_bdd (v Winning) in
+  let reg =  Region.union (Region.of_bdds (Cudd.bddTrue()) (Cudd.bddFalse())) (v Winning) in
+  let stratW = Strategy.of_region aig_bdd reg in
   (*let stratC = Strategy.of_region aig_bdd (v CoopWinning) in
   let stratL = Strategy.of_region aig_bdd (v Losing) in*)
   (*Strategy.disj [stratW;stratC;stratL]; print_endline "this is not correct"; *)

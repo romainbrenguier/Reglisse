@@ -21,5 +21,9 @@ Models a system composed of a driver and two schedulers.
 The driver cannot be synthesized without making some assumptions on the scheduler, hence adversary synthesis should fail.
 
 # washing_cycle_*.rgl
-Series of examples with a several modules representing controllers for tank of water and a module for controlling a light.
+Serie of examples with a several modules representing controllers for tank of water and a module for controlling a light.
 Each of them should be synthesizable independently so adversarial synthesis should succeed.
+
+# washing_cycle_mutex_*.rgl
+Similar to the previous serie but with an additional mutual exclusion condition between tanks.
+This should make adversarial synthesis fail while the other succeed.
