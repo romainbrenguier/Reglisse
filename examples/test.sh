@@ -1,6 +1,10 @@
 #!/bin/bash
 
-for i in examples/*.rgl; do
+LIST=examples/*.rgl
+#LIST=examples/washing_cycle_mutex*.rgl
+#LIST=examples/washing_cycle_*.rgl
+
+for i in $LIST; do
     echo "- Classical " $i;
     ./reglisse -t $i; 
     echo "- Cooperative " $i;
