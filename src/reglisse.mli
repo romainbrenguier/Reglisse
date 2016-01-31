@@ -60,8 +60,9 @@ end
  *  an implementation of the compositional module. *)
 val calls_to_aiger : ?env:Env.t -> t -> Aiger.t option
 
+type call_renaming = {call:string; renaming:(string * string) list}
 
-val calls_to_game : Env.t -> (string,t) Hashtbl.t -> t -> Game.t option
+val calls_to_game : Env.t -> (string,t) Hashtbl.t -> t -> (Game.t * (call_renaming list)) option
 
 
 

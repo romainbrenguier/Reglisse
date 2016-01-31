@@ -105,7 +105,7 @@ let classical_synthesis modules =
 	Timer.log "Composition module";
 	match Reglisse.calls_to_game env module_tab m with 
 	| None -> failwith "in Main.classical_synthesis: Reglisse.calls_to_game failed"
-	| Some game ->
+	| Some (game,_) ->
 	  Timer.log "Product computed";
 	  if !output_product then write_aiger "product" game.Game.aiger;
 	  let aiger_strat = general_synthesis game in
@@ -117,19 +117,19 @@ let classical_synthesis modules =
     | Some game -> 
       | None -> 
 *)
-  in 
-  List.iter aux modules;
-  match Reglisse.Env.find_aiger env "Main"
-  with Some x -> x | None -> 
-    Timer.warning "No Main module. If there are more than one module, one of them must be named Main.";
-    match modules with 
-    | [m] -> (* m should be an atomic module *)
-      (
-	match Reglisse.safety_to_game m with
-	| Some game -> general_synthesis game
-	| None -> failwith "in Main.classical_synthesis: Reglisse.safety_to_game failed"
-      )
-    | _ -> raise NoMainModule
+  in match modules with 
+  | [m] ->   
+    (
+      match Reglisse.safety_to_game m with
+      | Some game -> general_synthesis game
+      | None -> failwith "in Main.classical_synthesis: Reglisse.safety_to_game failed"
+    )
+  | _ ->
+    List.iter aux modules;
+    match Reglisse.Env.find_aiger env "Main"
+    with Some x -> x | None -> 
+      Timer.warning "No Main module. If there are more than one module, one of them must be named Main.";
+      raise NoMainModule
 
 
 let cooperative_synthesis modules =
@@ -151,7 +151,10 @@ let cooperative_synthesis modules =
        then Timer.log "coop realizable"
        else (Timer.log "unrealizable"; raise Unrealizable);
        Reglisse.Env.add_game env m.module_name game;
-       let new_strat = Strategy.of_region game.Game.circuit coop in
+       let new_strat = Strategy.of_region game.Game.circuit 
+	 (* Why do we need to take this ? *)
+	 (Region.union (Region.of_bdds (Cudd.bddTrue()) (Cudd.bddFalse())) coop) 
+       in
        Hashtbl.add module_tab m.module_name m;
        Hashtbl.add strats m.module_name new_strat
 
@@ -159,13 +162,22 @@ let cooperative_synthesis modules =
        Timer.log "Composition module";
        match Reglisse.calls_to_game env module_tab m with 
        | None -> failwith "in Main.classical_synthesis: Reglisse.calls_to_game failed"
-       | Some game ->
+       | Some (game,call_renaming_list) ->
 	  let open Game in
 	  Timer.log "Product computed";
 	  if !output_product then write_aiger "product" game.Game.aiger;
-	  Timer.log "... computing winning region with some restriction ... /!\\ no restriction implemented for now";
-	  let reg1 = Region.tt () in let reg2 = Region.tt () in
-	  let winning = Region.negation (Attractor.trap_with_restriction game.circuit game.contr game.uncontr reg1 reg2) in
+	  Timer.log "Computing winning region with some restriction";
+	  let strategies = call_renaming_list |> 
+	      List.map (fun {call;renaming} -> 
+	      let strat = 
+		try Hashtbl.find strats call 
+		with Not_found -> Timer.warning ("No strategy found for module "^call); 
+		  Strategy.all ()
+	      in Strategy.rename strat renaming 
+	      )
+	  in
+	  let strategy = Strategy.conj strategies in
+	  let winning = Region.negation (Attractor.trap ~strategy game) in
 	  if Region.includes_initial winning 
 	  then Timer.log "realizable"
 	  else (Timer.log "unrealizable"; raise Unrealizable);
@@ -173,9 +185,18 @@ let cooperative_synthesis modules =
 	  let aiger_strat = Strategy.to_aiger game.aiger strat game.contr game.uncontr in
 	  Env.add_aiger env m.module_name aiger_strat
   in 
-  List.iter aux modules;
-  match Reglisse.Env.find_aiger env "Main"
-  with Some x -> x | None -> raise NoMainModule
+  match modules with 
+  | [m] ->
+    (
+      match Reglisse.safety_to_game m with
+      | Some game -> general_synthesis game
+      | None -> failwith "in Main.cooperative_synthesis: Reglisse.safety_to_game failed"
+    )
+
+  | _ ->
+    List.iter aux modules;
+    match Reglisse.Env.find_aiger env "Main"
+    with Some x -> x | None -> raise NoMainModule
 
 
 let adversarial_synthesis modules =
@@ -203,9 +224,18 @@ let adversarial_synthesis modules =
        | None -> failwith "in Main.adversarial_synthesis: Reglisse.calls_to_aiger failed"
        | Some aiger -> Env.add_aiger env m.module_name aiger
   in 
-  List.iter aux modules;
-  match Reglisse.Env.find_aiger env "Main"
-  with Some x -> x | None -> raise NoMainModule
+  match modules with 
+  | [m] ->
+    (
+      match Reglisse.safety_to_game m with
+      | Some game -> general_synthesis game
+      | None -> failwith "in Main.adversarial_synthesis: Reglisse.safety_to_game failed"
+    )
+
+  | _ ->
+    List.iter aux modules;
+    match Reglisse.Env.find_aiger env "Main"
+    with Some x -> x | None -> raise NoMainModule
 
 
 let admissible_synthesis modules =

@@ -236,6 +236,7 @@ let add_prefix_to_aiger ~prefix ~aig =
   let abstract = LitMap.map (fun (s,i) -> (prefix^s,i)) aig.abstract in
   {aig with symbols; abstract }
 
+type call_renaming = {call:string; renaming:(string * string) list}
 
 let calls_to_game env modules t =
   let cnt = ref 0 in
@@ -255,13 +256,14 @@ let calls_to_game env modules t =
 	    let renaming = List.combine (Env.find_arguments_exn env module_name) arguments in
 	    if !Common.display_debug
 	    then List.iter (fun (a,b) -> Printf.printf "renaming %s into %s\n" a b) renaming;
-	    Aiger.full_rename aiger renaming, (prefix^"_accept")
+	    Aiger.full_rename aiger renaming, {call=module_name;renaming}, (prefix^"_accept")
 	) t.module_calls
     in
-    let game_list = List.map fst game_error_list in
-    let error_list = List.map snd game_error_list in
+    let game_list,renaming_list,error_list = 
+      List.fold_left (fun (la,lb,lc) (a,b,c) -> a::la,b::lb,c::lc) ([],[],[]) game_error_list 
+    in
     let aig = List.fold_left Aiger.compose (List.hd game_list) (List.tl game_list) in
     let game = Game.of_aiger ~aig ~inputs:t.inputs ~outputs:t.outputs ~errors:error_list in
-    Some game
+    Some (game,renaming_list)
 
   

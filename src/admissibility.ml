@@ -16,7 +16,7 @@ type value = Winning | CoopWinning | Help | Losing | NotWinning | NotLosing
  *)
 
 let losing game = 
-  let g = { game with contr = (List.rev_append game.contr game.uncontr) } in
+  let g = { game with contr = (List.rev_append game.contr game.uncontr); uncontr=[] } in
   trap g
   (* p controllables uncontrollables unsafe = 
   trap p (List.rev_append controllables uncontrollables) [] unsafe*)

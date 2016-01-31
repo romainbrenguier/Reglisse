@@ -5,16 +5,22 @@ let rename_substitute_restrict unsafe aiger =
   let substitued = Cudd.bddVectorCompose renamed (AigerBdd.Circuit.composition_vector aiger) in
   Cudd.bddOr substitued (Region.latch_input_configuration unsafe)
 
-let uncontrollable_predecessors_with_restriction unsafe aiger controllable_cube uncontrollable_cube weak restriction =
+
+(** [uncontrollable_predecessors U a x_c x_u strat] computes: 
+    \exists x_u.  (\forall x_c. strat => U) 
+    It computes the uncontrollable predecessors assuming x_c only plays according to strat which describes a partial strategy.
+*)
+let uncontrollable_predecessors_with_restriction unsafe aiger controllable_cube uncontrollable_cube weak strat =
   let restricted = rename_substitute_restrict unsafe aiger in
+  let implication = Cudd.bddOr restricted (Cudd.bddNot (Strategy.to_bdd strat)) in
   if weak 
   then 
-    let exist_quantified = Cudd.bddExistAbstract (Cudd.bddAnd (Region.latch_configuration restriction) restricted) uncontrollable_cube in
-    let univ_quantified = Cudd.bddUnivAbstract (Cudd.bddOr exist_quantified (Cudd.bddNot (Region.latch_configuration restriction))) controllable_cube in
+    let exist_quantified = Cudd.bddExistAbstract implication uncontrollable_cube in
+    let univ_quantified = Cudd.bddUnivAbstract exist_quantified controllable_cube in
     Region.of_bdds univ_quantified exist_quantified
   else
-    let univ_quantified = Cudd.bddUnivAbstract (Cudd.bddOr restricted (Cudd.bddNot (Region.latch_configuration restriction))) controllable_cube in
-    let exist_quantified = Cudd.bddExistAbstract (Cudd.bddAnd (Region.latch_input_configuration restriction) univ_quantified) uncontrollable_cube in
+    let univ_quantified = Cudd.bddUnivAbstract implication controllable_cube in
+    let exist_quantified = Cudd.bddExistAbstract univ_quantified uncontrollable_cube in
     Region.of_bdds exist_quantified univ_quantified
 
 let trap_with_restriction aiger controllables uncontrollables ?(weak=false) unsafe restriction =
@@ -28,16 +34,16 @@ let trap_with_restriction aiger controllables uncontrollables ?(weak=false) unsa
   Region.greatest_fixpoint aux unsafe
 
 
-let trap ?(weak=false) game =
-  trap_with_restriction game.circuit game.contr game.uncontr ~weak (Region.of_bdds game.err (Cudd.bddFalse())) (Region.tt())
+let trap ?(weak=false) ?(strategy = (Strategy.conj [])) game =
+  trap_with_restriction game.circuit game.contr game.uncontr ~weak (Region.of_bdds game.err (Cudd.bddFalse())) strategy
 
-let safe ?(weak=false) game = Region.negation (trap ~weak game)
+let safe ?(weak=false) ?(strategy = (Strategy.conj [])) game = Region.negation (trap ~weak ~strategy game)
 
 let attractor_with_restriction aiger controllables uncontrollables ?(weak=false) safe restriction =
   trap_with_restriction aiger uncontrollables controllables ~weak:(not weak) safe restriction
 
 let attractor aiger contr uncontr ?(weak=false) safe = 
-  attractor_with_restriction aiger contr uncontr ~weak (Region.of_bdds safe (Cudd.bddFalse())) (Region.tt())
+  attractor_with_restriction aiger contr uncontr ~weak (Region.of_bdds safe (Cudd.bddFalse())) (Strategy.conj [])
 
 
 let test aiger = 

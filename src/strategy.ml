@@ -10,11 +10,24 @@ let of_region game region =
   Cudd.bddVectorCompose renamed composition_vector
 
 
+let all () = Cudd.bddTrue()
+let none () = Cudd.bddFalse()
 let disj list = 
-  List.fold_left Cudd.bddOr (Cudd.bddFalse()) list
+  List.fold_left Cudd.bddOr (none()) list
 
 let conj list = 
-  List.fold_left Cudd.bddAnd (Cudd.bddTrue()) list
+  List.fold_left Cudd.bddAnd (all()) list
+
+let to_bdd strat = strat
+
+let rename strat renaming =
+  let var = renaming |> List.map fst
+	 |> List.map (fun x -> AigerBdd.Variable.find (x,0))
+	 |> Array.of_list in
+  let nvar = renaming |> List.map snd
+	 |> List.map (fun x -> AigerBdd.Variable.find (x,0)) 
+	 |> Array.of_list in
+  AigerBdd.Circuit.rename_configuration strat var nvar
 
 (** Returns an associative list of controllable input and BDD *)
 let to_bdds strategy controllables uncontrollables = 
