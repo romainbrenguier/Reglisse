@@ -28,7 +28,7 @@ let trap_with_restriction aiger controllables uncontrollables ?(weak=false) unsa
   let uncontrollable_cube = AigerBdd.Variable.make_cube uncontrollables in
 
   let aux u = 
-    Common.debug "in Attractor.trap_with_restriction: uncontrollable_predecessor step";
+    Timer.debug "in Attractor.trap_with_restriction: uncontrollable_predecessor step";
     uncontrollable_predecessors_with_restriction u aiger controllable_cube uncontrollable_cube weak restriction
   in 
   Region.greatest_fixpoint aux unsafe
