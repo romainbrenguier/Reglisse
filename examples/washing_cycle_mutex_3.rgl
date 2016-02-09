@@ -1,7 +1,6 @@
 module Tank
   (
    input  push1,
-   input mutex,
    output fill1,
    output empty1
    );
@@ -9,10 +8,16 @@ module Tank
    if "{true} * {push1} {! fill1}" then "{fill1}";
    never "{!push1} 2 {fill1}";
    if "{true} * {fill1}" then " {!empty1}{empty1}";
-   never "{mutex & fill1}";
 
 endmodule
 
+module Mutex
+  (
+   input m1,
+   input m2);
+   
+   never "{m1 & m2}";
+endmodule
 
 module Light
  (
@@ -34,9 +39,11 @@ module Main
    output light
    );
 
-   Tank(push1,fill3,fill1,empty1);
-   Tank(push2,fill1,fill2,empty2);
-   Tank(push3,fill1,fill3,empty3);
+   Tank(push1,fill1,empty1);
+   Tank(push2,fill2,empty2);
+   Tank(push3,fill3,empty3);
+   Mutex(fill1,fill2);
+   
    Light(fill1,fill2,fill3,light);
    
    

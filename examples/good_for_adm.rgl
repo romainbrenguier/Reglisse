@@ -1,0 +1,42 @@
+module Component
+  (input r,
+   input  n,
+   output q1,
+   output q2);
+
+   if "{r}" then "{q1}{!q1}{q1}";
+   if "{!r}" then "{!q2}{q2}{!q2}";
+   never "{n}";
+   
+endmodule
+
+
+module Driver
+  (input a, output b, output n);
+
+   never "{a} {!b & !n}";
+   never "{n}";
+
+   
+endmodule
+
+
+module Main
+  (input a, input a1, input a2,
+   output b, output c, output d,
+   output b1, output c1, output d1,
+   output b2, output c2, output d2,
+   output e,output e1, output e2
+   );
+
+   Component(b,c,d,e);
+   Component(b1,c1,d1,e1);
+   Component(b2,c2,d2,e2);
+   Driver(a,b,c);
+   Driver(a1,b1,c1);
+   Driver(a2,b2,c2);
+
+endmodule
+
+  
+   

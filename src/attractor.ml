@@ -12,7 +12,9 @@ let rename_substitute_restrict unsafe aiger =
 *)
 let uncontrollable_predecessors_with_restriction unsafe aiger controllable_cube uncontrollable_cube weak strat =
   let restricted = rename_substitute_restrict unsafe aiger in
-  let implication = Cudd.bddOr restricted (Cudd.bddNot (Strategy.to_bdd strat)) in
+  let implication = 
+    (* Cudd.bddOr restricted (Cudd.bddNot (Strategy.to_bdd strat)) in *)
+    Cudd.bddRestrict restricted (Strategy.to_bdd strat)  in
   if weak 
   then 
     let exist_quantified = Cudd.bddExistAbstract implication uncontrollable_cube in

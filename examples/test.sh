@@ -1,7 +1,7 @@
 #!/bin/bash
 
-LIST=examples/*.rgl
-#LIST=examples/washing_cycle_mutex*.rgl
+#LIST=examples/*.rgl
+LIST=examples/washing_cycle_mutex*.rgl
 #LIST=examples/washing_cycle_*.rgl
 
 for i in $LIST; do
