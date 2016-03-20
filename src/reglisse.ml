@@ -82,6 +82,10 @@ let initialize_functional m = match m.content with
   | Functional _ -> m
   | _ -> failwith "in Reglisse.initialize_functional: the given module is not a functional module."
 
+let rec add_boolean_var m v = match m.content with
+  | Functional (vars,ups) -> {m with content=Functional((v,Expression.var v Type.bool) :: vars, ups)}
+  | Empty -> let m = initialize_functional m in add_boolean_var m v
+
 let rec add_update m up =
   match m.content with 
   | Functional (v,ups) -> {m with content = Functional (v,up :: ups)}
@@ -102,7 +106,7 @@ let is_atomic m = match m.content with Calls _ | Empty -> true | _ -> false
 
 let lexer = Genlex.make_lexer
   ["module";"endmodule";"never";"enventually";
-   "only";"if";"then";"else";"input";"output";"when";
+   "only";"if";"then";"else";"input";"output";"reg";"when";
    "(";")";",";";";"/*";"*/";
    "<-"; "~"; "&"; "|"; "^";"true";"false"
   ]
@@ -172,6 +176,7 @@ let parse stream =
      parse_conditions (add_safety m (Only_if (seq,regexp))) stream
 
   | [< 'Genlex.Ident name >] -> parse_conditions (parse_call_or_update m name stream) stream
+  | [< 'Genlex.Kwd "reg"; 'Genlex.Ident name; 'Genlex.Kwd ";" >] -> parse_conditions (add_boolean_var m name) stream
   | [< 'Genlex.Kwd "/*" >] -> parse_comment stream; parse_conditions m stream
   | [< 'Genlex.Kwd "endmodule" >] -> m
   | [< >] -> failwith "in Reglisse.parse: waiting for [never \"regexp string\";] or [endmodule]"

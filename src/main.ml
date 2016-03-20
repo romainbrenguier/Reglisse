@@ -229,6 +229,7 @@ let adversarial_synthesis modules =
 	| None -> failwith "in Main.adversarial_synthesis: Reglisse.calls_to_aiger failed")
     | Functional _ ->
       ( Timer.log "Functional module";
+	Timer.warning "in the composition of functional module, the same variable used in different modules may be considered as one variable";
 	match Reglisse.functional_to_aiger m with 
 	| Some aiger -> Env.add_aiger env m.module_name aiger
 	| None -> failwith "in Main.adversarial_synthesis: Reglisse.functional_to_aiger failed")    

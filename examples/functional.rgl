@@ -1,5 +1,19 @@
-module Main(input a, input b, output c, output d);
+module Disj(input a, input b, output c);
+   c <- a | b;
+endmodule
+
+module Conj(input a, input b, output c);
+   c <- a & b;
+endmodule
+
+module Register(input a, output r);
+   reg b1;
+   r <- b1;
+   b1 <- a;
+endmodule
    
-  c <- a & b;
-   d <- a | b;
+module Main(input a, input b, output c, output d,output r);
+   Disj(a,b,c);
+   Conj(a,b,d);
+   Register(a,r);
 endmodule 
