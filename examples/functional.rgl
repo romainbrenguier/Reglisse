@@ -1,0 +1,5 @@
+module Main(input a, input b, output c, output d);
+   
+  c <- a & b;
+   d <- a | b;
+endmodule 

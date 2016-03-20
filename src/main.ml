@@ -86,6 +86,7 @@ let general_synthesis game =
   let aiger_strat = Strategy.to_aiger game.aiger strat game.contr game.uncontr in
   aiger_strat
 
+  
 let classical_synthesis modules =
   Timer.log "Classical synthesis";
   let open Reglisse in
@@ -206,30 +207,41 @@ let adversarial_synthesis modules =
   let rec aux m =
     Timer.log ("Module "^m.module_name);
     Reglisse.Env.new_module env m.module_name m.inputs m.outputs;
-    match Reglisse.safety_to_game m with 
-    | Some game -> 
-       let open Game in
-       Timer.log "Atomic module";
-       let winning = Attractor.safe game in
-       if Region.includes_initial winning 
-       then Timer.log "realizable"
-       else (Timer.log "unrealizable"; raise Unrealizable);
-       let strat = Strategy.of_region game.circuit winning in
-       let aiger_strat = Strategy.to_aiger game.aiger strat game.contr game.uncontr in
-       Env.add_aiger env m.module_name aiger_strat
+    match m.content with 
+    | Safety _ -> 
+      ( match Reglisse.safety_to_game m with 
+      | Some game -> 
+	let open Game in
+	Timer.log "Atomic module";
+	let winning = Attractor.safe game in
+	if Region.includes_initial winning 
+	then Timer.log "realizable"
+	else (Timer.log "unrealizable"; raise Unrealizable);
+	let strat = Strategy.of_region game.circuit winning in
+	let aiger_strat = Strategy.to_aiger game.aiger strat game.contr game.uncontr in
+	Env.add_aiger env m.module_name aiger_strat
+      | None -> failwith "in Main.adversarial_synthesis: Reglisse.safety_to_game failed"
+      )
+    | Calls _ -> 
+      ( Timer.log "Composition module";
+	match Reglisse.calls_to_aiger ~env m with 
+	| Some aiger -> Env.add_aiger env m.module_name aiger
+	| None -> failwith "in Main.adversarial_synthesis: Reglisse.calls_to_aiger failed")
+    | Functional _ ->
+      ( Timer.log "Functional module";
+	match Reglisse.functional_to_aiger m with 
+	| Some aiger -> Env.add_aiger env m.module_name aiger
+	| None -> failwith "in Main.adversarial_synthesis: Reglisse.functional_to_aiger failed")    
 
-    | None -> 
-       Timer.log "Composition module";
-       match Reglisse.calls_to_aiger ~env m with 
-       | None -> failwith "in Main.adversarial_synthesis: Reglisse.calls_to_aiger failed"
-       | Some aiger -> Env.add_aiger env m.module_name aiger
   in 
   match modules with 
   | [m] ->
     (
       match Reglisse.safety_to_game m with
       | Some game -> general_synthesis game
-      | None -> failwith "in Main.adversarial_synthesis: Reglisse.safety_to_game failed"
+      | None -> match Reglisse.functional_to_aiger m with 
+	| Some aiger -> aiger
+	| None -> failwith "in Main.adversarial_synthesis: Reglisse.safety_to_game and Reglisse.functional_to_aiger failed"
     )
 
   | _ ->

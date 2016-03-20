@@ -38,30 +38,74 @@ let rec safety_to_expr = function
      safety_to_expr (If_then_else ("{true} * ("^s^")",t,e))
      
 
-type t =
+type module_content = 
+| Calls of (string * string list) list
+| Safety of safety list
+| Eventually of string list
+| Functional of (string * Expression.t) list * (Expression.t * Expression.t) list
+| Empty
+
+type t = 
   { 
     module_name: string;
     inputs: string list; 
     outputs: string list;
-    safety: safety list;
-    eventually: string list;
-    module_calls: (string * string list) list
+    content: module_content;
   }
 
 let new_module name = 
-  {module_name=name;inputs=[];outputs=[];safety=[];eventually=[]; module_calls=[]}
+  {module_name=name;inputs=[];outputs=[];content=Empty}
 
 let add_input m input = {m with inputs=input :: m.inputs}
 let add_output m output = {m with outputs=output :: m.outputs}
-let add_safety m never = {m with safety=never :: m.safety}
-let add_eventually m eventually = {m with eventually=eventually :: m.eventually}
-let add_call m c = { m with module_calls = c :: m.module_calls }
-let is_atomic m = m.module_calls = []
+let add_safety m never = 
+  match m.content with 
+  | Safety s -> {m with content = Safety (never :: s)}
+  | Empty ->  {m with content = Safety [never]}
+  | _ -> failwith "in Reglisse.add_safety: the given module is not an atomic module."
+    
+let add_eventually m eventually = 
+  failwith "in Reglisse.add_enventually: not implemented"
+(* {m with eventually=eventually :: m.eventually}*)
+
+let add_call m c = 
+  match m.content with 
+  | Calls cs -> {m with content = Calls (c :: cs)}
+  | Empty ->  {m with content = Calls [c]}
+  | _ -> failwith "in Reglisse.add_call: the given module is not a compositional module."
+
+let initialize_functional m = match m.content with 
+  | Empty ->  
+    let expr_inputs = List.map (fun i -> (i,Expression.var i Type.bool)) m.inputs in
+    let expr_outputs = List.map (fun o -> (o,Expression.var o Type.bool)) m.outputs in
+    {m with content = Functional (List.rev_append expr_inputs expr_outputs,[])}
+  | Functional _ -> m
+  | _ -> failwith "in Reglisse.initialize_functional: the given module is not a functional module."
+
+let rec add_update m up =
+  match m.content with 
+  | Functional (v,ups) -> {m with content = Functional (v,up :: ups)}
+  | Empty -> let m = initialize_functional m in add_update m up
+  | _ -> failwith "in Reglisse.add_update: the given module is not a functional module."
+
+
+let find_functional_var m v = 
+  match m.content with
+  | Functional (vars,_) ->
+    (try List.assoc v vars 
+     with Not_found ->
+       failwith "in Reglisse.find_functional_var: the variable has not been declared."
+    )
+  | _ -> failwith "in Reglisse.find_functional_var: the given module is not a functional module."
+
+let is_atomic m = match m.content with Calls _ | Empty -> true | _ -> false
 
 let lexer = Genlex.make_lexer
   ["module";"endmodule";"never";"enventually";
    "only";"if";"then";"else";"input";"output";"when";
-   "(";")";",";";";"/*";"*/"]
+   "(";")";",";";";"/*";"*/";
+   "<-"; "~"; "&"; "|"; "^";"true";"false"
+  ]
 
 exception NoMoreModule
 
@@ -83,6 +127,31 @@ let parse stream =
   | [< 'Genlex.Kwd ")" >] -> a :: accu) stream
   in
 
+  let rec parse_expression_aux m accu = parser 
+  | [< 'Genlex.Kwd "&"; e = parse_expression m >] -> parse_expression_aux m (Expression.conj accu e) stream
+  | [< 'Genlex.Kwd "|"; e = parse_expression m >] -> parse_expression_aux m (Expression.disj accu e) stream
+  | [< 'Genlex.Kwd "^"; e = parse_expression m >] -> parse_expression_aux m (Expression.xor accu e) stream
+  | [< >] -> accu
+  and parse_expression m = parser
+      | [< 'Genlex.Kwd "("; e = parse_expression m; 'Genlex.Kwd ")" >] -> parse_expression_aux m e stream
+  | [< 'Genlex.Kwd "true" >] -> parse_expression_aux m (Expression.bool true) stream
+  | [< 'Genlex.Kwd "false" >] -> parse_expression_aux m (Expression.bool false) stream
+  | [< 'Genlex.Ident i >] -> parse_expression_aux m (find_functional_var m i) stream
+    (* warning: ~ doesn't have high precedence *)
+  | [< 'Genlex.Kwd "~"; e = parse_expression m >] -> Expression.neg e
+  in
+
+  let parse_call_or_update m ident = parser 
+  | [< 'Genlex.Kwd "("; a = parse_arguments []; 'Genlex.Kwd ";" >] ->
+    add_call m (ident, a)
+  | [< 'Genlex.Kwd "<-" >] ->
+    let m = initialize_functional m in
+    let e = parse_expression m stream in
+    (parser | [< 'Genlex.Kwd ";" >] -> 
+     add_update m (find_functional_var m ident,e)) stream
+
+  in
+
   let rec parse_conditions m = parser
   | [< 'Genlex.Kwd "not" ; 'Genlex.String regexp; 'Genlex.Kwd ";" >] ->
      parse_conditions (add_safety m (Not regexp)) stream
@@ -102,8 +171,7 @@ let parse stream =
   | [< 'Genlex.Kwd "only"; 'Genlex.Kwd "if" ; 'Genlex.String seq; 'Genlex.Kwd "then"; 'Genlex.String regexp; 'Genlex.Kwd ";" >] ->
      parse_conditions (add_safety m (Only_if (seq,regexp))) stream
 
-  | [< 'Genlex.Ident name; 'Genlex.Kwd "("; a = parse_arguments []; 'Genlex.Kwd ";" >] ->
-     parse_conditions (add_call m (name, a)) stream
+  | [< 'Genlex.Ident name >] -> parse_conditions (parse_call_or_update m name stream) stream
   | [< 'Genlex.Kwd "/*" >] -> parse_comment stream; parse_conditions m stream
   | [< 'Genlex.Kwd "endmodule" >] -> m
   | [< >] -> failwith "in Reglisse.parse: waiting for [never \"regexp string\";] or [endmodule]"
@@ -159,17 +227,25 @@ let parse_file file =
 
 
 let safety_to_aiger ?(prefix="never") t = 
-  if t.safety = [] then None
-  else
-    let expressions = List.map safety_to_expr t.safety in
+  match t.content with
+  | Safety s ->
+    let expressions = List.map safety_to_expr s in
     let expr = ExtendedExpression.alt expressions in
     Some (ExtendedExpression.to_aiger ~prefix expr)
+  | _ -> None
+
 
 let safety_to_game modul = 
   let prefix = "never_"^modul.module_name in
   match safety_to_aiger ~prefix modul with
   | Some aig -> Some ( Game.of_aiger ~aig ~inputs:modul.inputs ~outputs:modul.outputs ~errors:[prefix^"_accept"])
   | None -> None
+
+let functional_to_aiger t = 
+  match t.content with 
+  | Functional (vars,updates) -> Some (Expression.functional_synthesis updates )
+  | _ -> None 
+
 
 module Env = 
 struct
@@ -208,22 +284,22 @@ struct
 end
 
 let calls_to_aiger ?(env=Env.default) t = 
-  if t.module_calls = [] then None
-  else
+  match t.content with
+  | Calls module_calls ->
     Some 
       (
 	List.fold_left 
 	  (fun aiger (module_name,arguments) ->
-	   Common.debug ("Calling "^module_name);
-	   let renaming = List.combine (Env.find_arguments_exn env module_name) arguments in
+	    Common.debug ("Calling "^module_name);
+	    let renaming = List.combine (Env.find_arguments_exn env module_name) arguments in
 	   if !Common.display_debug
 	   then List.iter (fun (a,b) -> Printf.printf "renaming %s into %s\n" a b) renaming;
 	   (* prerr_endline "we should also rename hidden outputs? so that there are no collisions"; *)
 	   let aig1 = Aiger.full_rename (Env.find_aiger_exn env module_name) renaming in
 	   Aiger.compose aiger aig1 
-	  ) Aiger.empty t.module_calls
+	  ) Aiger.empty module_calls
       )
-
+    | _ -> None
 
 let add_prefix_to_aiger ~prefix ~aig =
   let open Aiger in
@@ -241,8 +317,8 @@ type call_renaming = {call:string; renaming:(string * string) list}
 let calls_to_game env modules t =
   let cnt = ref 0 in
   let prefix () = "call_"^string_of_int !cnt ^"_" in
-  if t.module_calls = [] then (Timer.warning "no module calls"; None)
-  else
+  match t.content with
+  | Calls module_calls ->
     let game_error_list = 
       List.map 
 	(fun (module_name,arguments) ->
@@ -257,7 +333,7 @@ let calls_to_game env modules t =
 	    if !Common.display_debug
 	    then List.iter (fun (a,b) -> Printf.printf "renaming %s into %s\n" a b) renaming;
 	    Aiger.full_rename aiger renaming, {call=module_name;renaming}, (prefix^"_accept")
-	) t.module_calls
+	) module_calls
     in
     let game_list,renaming_list,error_list = 
       List.fold_left (fun (la,lb,lc) (a,b,c) -> a::la,b::lb,c::lc) ([],[],[]) game_error_list 
@@ -265,5 +341,6 @@ let calls_to_game env modules t =
     let aig = List.fold_left Aiger.compose (List.hd game_list) (List.tl game_list) in
     let game = Game.of_aiger ~aig ~inputs:t.inputs ~outputs:t.outputs ~errors:error_list in
     Some (game,renaming_list)
+  | _ -> Timer.warning "no module calls"; None
 
   
