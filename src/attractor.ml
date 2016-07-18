@@ -1,8 +1,8 @@
 open Game 
 
 let rename_substitute_restrict unsafe aiger =
-  let renamed = AigerBdd.Circuit.rename_configuration (Region.latch_configuration unsafe) (AigerBdd.Circuit.array_variables aiger) (AigerBdd.Circuit.array_next_variables aiger) in
-  let substitued = Cudd.bddVectorCompose renamed (AigerBdd.Circuit.composition_vector aiger) in
+  let renamed = BddVariable.rename_configuration (Region.latch_configuration unsafe) (Circuit.array_variables aiger) (Circuit.array_next_variables aiger) in
+  let substitued = Cudd.bddVectorCompose renamed (Circuit.composition_vector aiger) in
   Cudd.bddOr substitued (Region.latch_input_configuration unsafe)
 
 
@@ -26,8 +26,8 @@ let uncontrollable_predecessors_with_restriction unsafe aiger controllable_cube 
     Region.of_bdds exist_quantified univ_quantified
 
 let trap_with_restriction aiger controllables uncontrollables ?(weak=false) unsafe restriction =
-  let controllable_cube = AigerBdd.Variable.make_cube controllables in
-  let uncontrollable_cube = AigerBdd.Variable.make_cube uncontrollables in
+  let controllable_cube = BddVariable.make_cube controllables in
+  let uncontrollable_cube = BddVariable.make_cube uncontrollables in
 
   let aux u = 
     Timer.debug "in Attractor.trap_with_restriction: uncontrollable_predecessor step";
@@ -50,17 +50,16 @@ let attractor aiger contr uncontr ?(weak=false) safe =
 
 let test aiger = 
   let bdd_of_lit lit = 
-    AigerBdd.Variable.to_bdd (AigerBdd.Variable.find (AigerBdd.of_aiger_symbol (Aiger.lit2symbol aiger lit)))
+    BddVariable.to_bdd (BddVariable.find (AigerImperative.lit2string_exn aiger lit))
   in
 
-  let contr,uncontr = Game.controllables aiger in
   let (contrv,uncontrv) = Game.controllable_variables aiger in 
-  if !Common.display_debug then List.iter (fun x -> Printf.printf "%d controllable\n" (Aiger.lit2int x)) contr;
+  if !Common.display_debug then List.iter (fun x -> Printf.printf "%d controllable\n" (BddVariable.to_int x)) contrv;
 
-  AigerBdd.init aiger;
-  let unsafe = List.fold_left Cudd.bddOr (Cudd.bddFalse()) (List.map bdd_of_lit aiger.Aiger.outputs) in
-  let initial = AigerBdd.bdd_of_valuation (AigerBdd.Circuit.initial_state aiger) in
-  let circuit = AigerBdd.Circuit.of_aiger aiger in   
+  AigerImpBdd.init aiger;
+  let unsafe = List.fold_left Cudd.bddOr (Cudd.bddFalse()) (List.map bdd_of_lit (AigerImperative.LitSet.elements aiger.AigerImperative.outputs)) in
+  let initial = AigerImpBdd.bdd_of_valuation (Circuit.initial_state aiger) in
+  let circuit = Circuit.of_aiger aiger in   
   let game = { aiger; circuit; contr=contrv; uncontr=uncontrv; err =unsafe} in
   let trap_set = trap ~weak:false game in
   let trap_set_weak = trap ~weak:true game in
@@ -78,7 +77,7 @@ let test aiger =
      let strat = Strategy.to_aiger aiger (Strategy.of_region game.circuit (Region.negation trap_set)) contrv uncontrv in
      let file_name = Sys.argv.(1)^".controller.aag" in
      let outch = open_out file_name in
-     Aiger.write strat outch;
+     AigerImperative.write outch strat;
      close_out outch;
      Printf.printf "controller written in file %s\n" file_name
     )
@@ -98,5 +97,5 @@ let main =
     if Array.length Sys.argv < 2 
     then Printf.printf "usage : %s <file>\n" Sys.argv.(0)
     else 
-      let aiger = Aiger.read_from_file Sys.argv.(1) in
+      let aiger = AigerImperative.read_from_file Sys.argv.(1) in
       test aiger

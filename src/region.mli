@@ -26,7 +26,7 @@ val greatest_fixpoint : (t -> t) -> t -> t
 val smallest_fixpoint : (t -> t) -> t -> t
 
 (** initial state of the game (valuation 0 for latches *and* outputs) *)
-val initial_state : Aiger.t -> Cudd.bdd
+val initial_state : AigerImperative.t -> Cudd.bdd
 
 val includes_initial : t -> bool
 

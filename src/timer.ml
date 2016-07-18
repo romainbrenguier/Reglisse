@@ -3,7 +3,7 @@ let display_warning = ref false
 
 let display () =
   let t = Unix.times () in
-  Printf.printf "[%.3fs]" t.tms_utime
+  Printf.printf "[%.3fs]" t.Unix.tms_utime
 
 let warning string =
   if !display_warning 

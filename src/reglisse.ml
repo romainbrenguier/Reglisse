@@ -36,12 +36,40 @@ let rec safety_to_expr = function
 	   (ExtendedExpression.regexp regexp_else)]
   | When_else (s,t,e) -> 
      safety_to_expr (If_then_else ("{true} * ("^s^")",t,e))
-     
+
+module Program = 
+struct
+  type t = 
+  | Skip
+  | SimpleExpr of Proposition.t
+  | Concat of t * t
+  | While of Proposition.t * t
+  | If_then_else of Proposition.t * t * t
+  (* | Parallel of t * t*)
+
+  let skip = Skip
+  let prop p = SimpleExpr p
+  let concat a b = Concat(a,b)
+  let make_while a b = While(a,b)
+  let if_then_else a b c = If_then_else (a,b,c)
+  (* let parallel a b = Parallel (a,b)*)
+
+  module RE = RegularExpression
+
+  let to_extended_expression = 
+    let rec aux = function
+      | Skip -> RE.Epsilon
+      | SimpleExpr p -> RE.prop p
+      | Concat (a,b) -> RE.concat (aux a) (aux b)
+      | While(p,a) -> RE.concat (RE.star (RE.concat (RE.prop p) (aux a))) (RE.prop (Proposition.neg p))
+      | If_then_else (p,a,b) -> RE.concat (RE.concat (RE.prop p) (aux a)) (RE.concat (RE.prop (Proposition.neg p)) (aux b))
+    in aux
+end
 
 type module_content = 
 | Calls of (string * string list) list
 | Safety of safety list
-| Eventually of string list
+| Eventually of Program.t list
 | Functional of (string * Expression.t) list * (Expression.t * Expression.t) list
 | Empty
 
@@ -63,10 +91,13 @@ let add_safety m never =
   | Safety s -> {m with content = Safety (never :: s)}
   | Empty ->  {m with content = Safety [never]}
   | _ -> failwith "in Reglisse.add_safety: the given module is not an atomic module."
-    
-let add_eventually m eventually = 
-  failwith "in Reglisse.add_enventually: not implemented"
-(* {m with eventually=eventually :: m.eventually}*)
+
+let add_program m eventually = 
+  match m.content with 
+  | Eventually p -> {m with content = Eventually (eventually :: p)}
+  | Empty ->  {m with content = Eventually [eventually]}
+  | _ -> failwith "in Reglisse.add_program: the given module is not an atomic module."
+
 
 let add_call m c = 
   match m.content with 
@@ -106,7 +137,7 @@ let is_atomic m = match m.content with Calls _ | Empty -> true | _ -> false
 
 let lexer = Genlex.make_lexer
   ["module";"endmodule";"never";"enventually";
-   "only";"if";"then";"else";"input";"output";"reg";"when";
+   "only";"if";"then";"else";"input";"output";"reg";"when";"always";"not";
    "(";")";",";";";"/*";"*/";
    "<-"; "~"; "&"; "|"; "^";"true";"false"
   ]
@@ -156,13 +187,20 @@ let parse stream =
 
   in
 
+  let parse_program = parser 
+  | [< >] ->  failwith "program parsing not implemented"
+  in
+
   let rec parse_conditions m = parser
+  (*| [< 'Genlex.Kwd "not"; 'Genlex.Kwd "always" ; 'Genlex.String regexp; 'Genlex.Kwd ";" >] ->
+    parse_conditions (add_safety m (Not (Printf.sprintf "( %s ) %d" regexp !not_always_bound))) stream*)
   | [< 'Genlex.Kwd "not" ; 'Genlex.String regexp; 'Genlex.Kwd ";" >] ->
      parse_conditions (add_safety m (Not regexp)) stream
+
   | [< 'Genlex.Kwd "never" ; 'Genlex.String regexp; 'Genlex.Kwd ";" >] ->
      parse_conditions (add_safety m (Never regexp)) stream
-  | [< 'Genlex.Kwd "eventually" ; 'Genlex.String regexp; 'Genlex.Kwd ";" >] ->
-     failwith "eventually not supported"
+  | [< 'Genlex.Kwd "eventually" ; p = parse_program; 'Genlex.Kwd ";" >] ->
+    parse_conditions (add_program m p) stream
 
   | [< 'Genlex.Kwd "if" ; 'Genlex.String regexp; 'Genlex.Kwd "then"; 'Genlex.String seq; x = parse_else >] ->
      (match x with None -> parse_conditions (add_safety m (If_then (regexp,seq))) stream
@@ -255,7 +293,7 @@ let functional_to_aiger t =
 module Env = 
 struct
   type t = {arguments: (string, string list * string list) Hashtbl.t;
-	    aigers: (string, Aiger.t) Hashtbl.t;
+	    aigers: (string, AigerImperative.t) Hashtbl.t;
 	    games: (string, Game.t) Hashtbl.t}
   let create i = { arguments=Hashtbl.create i; aigers=Hashtbl.create i; games=Hashtbl.create i}
   let default = create 1
@@ -300,22 +338,24 @@ let calls_to_aiger ?(env=Env.default) t =
 	   if !Common.display_debug
 	   then List.iter (fun (a,b) -> Printf.printf "renaming %s into %s\n" a b) renaming;
 	   (* prerr_endline "we should also rename hidden outputs? so that there are no collisions"; *)
-	   let aig1 = Aiger.full_rename (Env.find_aiger_exn env module_name) renaming in
-	   Aiger.compose aiger aig1 
-	  ) Aiger.empty module_calls
+	    let module_aig = Env.find_aiger_exn env module_name in
+	    AigerImperative.rename module_aig (fun x -> try List.assoc x renaming with Not_found -> x);
+	    AigerImperative.compose aiger module_aig 
+	  ) (AigerImperative.empty()) module_calls
       )
     | _ -> None
 
 let add_prefix_to_aiger ~prefix ~aig =
-  let open Aiger in
+  AigerImperative.rename aig (fun x -> prefix^x) 
+  (*let open Aiger in
   let symbols = 
     SymbolMap.fold 
       (fun (s,i) l accu -> 
-       SymbolMap.add (prefix^s,i) l accu
+	SymbolMap.add (prefix^s,i) l accu
       ) aig.symbols SymbolMap.empty 
   in
   let abstract = LitMap.map (fun (s,i) -> (prefix^s,i)) aig.abstract in
-  {aig with symbols; abstract }
+  {aig with symbols; abstract }*)
 
 type call_renaming = {call:string; renaming:(string * string) list}
 
@@ -337,13 +377,14 @@ let calls_to_game env modules t =
 	    let renaming = List.combine (Env.find_arguments_exn env module_name) arguments in
 	    if !Common.display_debug
 	    then List.iter (fun (a,b) -> Printf.printf "renaming %s into %s\n" a b) renaming;
-	    Aiger.full_rename aiger renaming, {call=module_name;renaming}, (prefix^"_accept")
+	    AigerImperative.rename aiger (fun x -> try List.assoc x renaming with Not_found -> x);
+	    aiger, {call=module_name;renaming}, (prefix^"_accept")
 	) module_calls
     in
     let game_list,renaming_list,error_list = 
       List.fold_left (fun (la,lb,lc) (a,b,c) -> a::la,b::lb,c::lc) ([],[],[]) game_error_list 
     in
-    let aig = List.fold_left Aiger.compose (List.hd game_list) (List.tl game_list) in
+    let aig = List.fold_left AigerImperative.compose (List.hd game_list) (List.tl game_list) in
     let game = Game.of_aiger ~aig ~inputs:t.inputs ~outputs:t.outputs ~errors:error_list in
     Some (game,renaming_list)
   | _ -> Timer.warning "no module calls"; None

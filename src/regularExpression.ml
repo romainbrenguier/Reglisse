@@ -232,7 +232,8 @@ let transitive_closure auto state =
   let rec aux reachable s = 
     let trans = try IntMap.find s auto.transitions 
       with Not_found -> 
-	Common.debug ("warning: state "^string_of_int s^" not found"); 
+	(* This can happen when the state is accepting *)
+	(* Common.debug ("warning: state "^string_of_int s^" not found"); *)
 	[] 
     in
     List.fold_left 
@@ -328,6 +329,8 @@ let coaccessible auto =
 
 (* takes as input an automaton without epsilon transitions *)
 let automaton_to_aiger ?(prefix="") auto =
+  print_endline "RegularExpression.automaton_to_aiger:";
+  print_endline (automaton_to_string auto);
   let state_var = 
     IntSet.fold 
       (fun state accu -> 
@@ -383,8 +386,8 @@ let automaton_to_aiger ?(prefix="") auto =
       ) (states auto) IntMap.empty
   in
 
-  let aig_trans = 
-  functional_synthesis 
+  let aig = 
+    functional_synthesis 
     (
       [
 	init, bool true;
@@ -404,23 +407,26 @@ let automaton_to_aiger ?(prefix="") auto =
     )
   in
 
-  let aig = Aiger.hide aig_trans (prefix^"_accept",Some 0) in
-  let aig, no_accept =
+  (try
+    AigerImperative.hide aig (prefix^"_accept<0>") 
+   with Not_found -> 
+     Printf.eprintf "Warning: problem in RegularExpression, Aiger.hide raised not found on %s_accept<0>\n" prefix);
+    
+  let no_accept =
     List.fold_left 
-      (fun (aig,gate) s -> 
-       let aig, v = Aiger.new_var aig in
-       let lit_state = Aiger.symbol2lit aig (prefix^"_state_"^string_of_int s,Some 0) in
-       let aig = Aiger.add_and aig (Aiger.var2lit v) gate (Aiger.aiger_not lit_state) in
-       aig, (Aiger.var2lit v)
-      ) (aig,Aiger.aiger_true) auto.accept
+      (fun gate s -> 
+	(* We should make a cleaner way to find the corresponding literal *)
+	let lit_state = AigerImperative.string2lit_exn aig (prefix^"_state_"^string_of_int s^"<0>") in
+	AigerImperative.conj aig gate (AigerImperative.neg lit_state)
+      ) AigerImperative.aiger_true auto.accept
   in
 
-  let aig,var = Aiger.new_var aig in
-  let lit = Aiger.var2lit var in
-  let aig = Aiger.add_and aig lit (Aiger.aiger_not no_accept) Aiger.aiger_true in
+  let lit = AigerImperative.conj aig (AigerImperative.neg no_accept) AigerImperative.aiger_true in
 
-  Aiger.add_output aig lit (prefix^"_accept",Some 0)
-  (*Aiger.add_output aig (Aiger.aiger_not no_accept) (prefix^"accept",Some 0)*)
+  AigerImperative.set_output aig (prefix^"_accept") lit;
+  print_endline "RegularExpression.automaton_to_aiger, generated aiger:";
+  AigerImperative.write stdout aig;
+  aig
 		 
 
 
@@ -438,7 +444,7 @@ let regexp string = to_aiger (of_string string)
 
 let test string = 
   let aiger = regexp string in
-  Aiger.write aiger stdout
+  AigerImperative.write stdout aiger
 
 let of_file file_name = 
   let inch = open_in file_name in
@@ -463,6 +469,6 @@ let main =
 	try of_file Sys.argv.(1)
 	with _ -> of_string Sys.argv.(1)
       in 
-      Aiger.write (to_aiger regexp) stdout
+      AigerImperative.write stdout (to_aiger regexp)
 
 

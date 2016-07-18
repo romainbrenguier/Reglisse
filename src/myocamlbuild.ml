@@ -12,9 +12,15 @@ let () =
 	flag ["ocaml";"compile";"use_ocaml-aiger"]
 	  (S[A "-I"; P "../../ocaml-aiger/_build"]);
 	flag ["ocaml";"link";"use_ocaml-aiger"]
-	  (P "../../ocaml-aiger/_build/aiger.cma");
+	  (S[P "../../ocaml-aiger/_build/aiger.cma"; P "../../ocaml-aiger/_build/aigerImperative.cma"]);
+
+	flag ["doc";"use_speculoos"] 
+	  (S[A "-I"; P "../../Speculoos/_build"]);
+	flag ["ocaml";"compile";"use_speculoos"]
+	  (S[A "-I"; P "../../Speculoos/_build"]);
+
 	flag ["ocaml";"compile";"use_ocaml-cudd"]
-	  (S[A "-I"; P "../../ocaml-cudd/"]);
+	  (S[A "-I"; P "../../ocaml-cudd/_build"]);
 	flag ["ocaml";"compile";"syntax_extension"] 
 	     (S[
 		  A "-I"; P"+camlp4";A"-pp";
@@ -31,8 +37,8 @@ let () =
 	flag ["ocaml";"link";"use_ocaml-cudd"] 
 	  (S [
 	    A"-custom";
-	    P "../../ocaml-cudd/cudd.o";
-	    P"../../ocaml-cudd/cudd.cmo"; 
+	    P "../../ocaml-cudd/_build/cudd.o";
+	    P"../../ocaml-cudd/_build/cudd.cmo"; 
 	    P"../../ocaml-cudd/cudd-2.5.0/cudd/libcudd.a";
 	    P"../../ocaml-cudd/cudd-2.5.0/util/libutil.a";
 	    P"../../ocaml-cudd/cudd-2.5.0/epd/libepd.a";

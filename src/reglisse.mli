@@ -9,10 +9,22 @@ type safety =
 
 val safety_to_expr : safety -> ExtendedExpression.t
 
+module Program :
+sig
+  type t 
+  val skip : t
+  val prop : Proposition.t -> t
+  val concat : t -> t -> t
+  val make_while : Proposition.t -> t -> t
+  val if_then_else : Proposition.t -> t -> t -> t
+  val to_extended_expression : t -> RegularExpression.t
+end
+
+
 type module_content = 
 | Calls of (string * string list) list
 | Safety of safety list
-| Eventually of string list
+| Eventually of Program.t list
 | Functional of (string * Expression.t) list * (Expression.t * Expression.t) list
 | Empty
 
@@ -45,33 +57,33 @@ val parse : Genlex.token Stream.t -> t
 val parse_file : string -> t list
 
 
-val safety_to_aiger : ?prefix:string -> t -> Aiger.t option
+val safety_to_aiger : ?prefix:string -> t -> AigerImperative.t option
 
 (** Construct a game with prefix given by the module name *)
 val safety_to_game : t -> Game.t option
 
 
-val functional_to_aiger : t -> Aiger.t option
+val functional_to_aiger : t -> AigerImperative.t option
 
 module Env :
 sig 
   type t
   val create : int -> t
   val new_module : t -> string -> string list -> string list -> unit
-  val add_aiger : t -> string -> Aiger.t -> unit
+  val add_aiger : t -> string -> AigerImperative.t -> unit
   val add_game : t -> string -> Game.t -> unit
   (** Functions with name ending with exn may throw a Not_found exception *)
   val find_arguments_exn : t -> string -> string list 
   val find_arguments : t -> string -> (string list) option
-  val find_aiger_exn : t -> string -> Aiger.t
-  val find_aiger : t -> string -> Aiger.t option
+  val find_aiger_exn : t -> string -> AigerImperative.t
+  val find_aiger : t -> string -> AigerImperative.t option
   val find_game_exn : t -> string -> Game.t
   val find_game : t -> string -> Game.t option
 end
 
 (** When the environment contains an implementation for each call we can construct 
  *  an implementation of the compositional module. *)
-val calls_to_aiger : ?env:Env.t -> t -> Aiger.t option
+val calls_to_aiger : ?env:Env.t -> t -> AigerImperative.t option
 
 type call_renaming = {call:string; renaming:(string * string) list}
 

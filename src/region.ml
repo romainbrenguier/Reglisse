@@ -30,17 +30,17 @@ let rec smallest_fixpoint f x =
   if equal next x then x else smallest_fixpoint f next
 
 
-let bdd_of_lit aiger lit = AigerBdd.Variable.to_bdd (AigerBdd.Variable.of_lit aiger lit)
+let bdd_of_lit aiger lit = BddVariable.to_bdd (BddVariable.of_lit_exn aiger lit)
 
 let initial_state aiger = 
   List.fold_left Cudd.bddAnd (Cudd.bddTrue()) 
     (List.map Cudd.bddNot 
        (List.map (bdd_of_lit aiger) 
-	  (List.rev_append aiger.Aiger.outputs 
-	     (List.map fst aiger.Aiger.latches))))
+	  (List.rev_append (AigerImperative.LitSet.elements aiger.AigerImperative.outputs) 
+	     (Hashtbl.fold (fun x _ accu -> x :: accu) aiger.AigerImperative.latches []))))
 
 let includes_initial region =
-  let m = AigerBdd.Variable.max_var () in
+  let m = BddVariable.max_var () in
   let bdd = ref (Cudd.bddTrue()) in
   for i = 0 to m do 
     bdd := Cudd.bddAnd (!bdd) (Cudd.bddNot (Cudd.ithVar i))

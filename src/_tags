@@ -1,15 +1,9 @@
 <*.ml>: pp(camlp4o)
-<aigerBdd.*>: use_ocaml-aiger, use_ocaml-cudd
-<bddToAiger.*>: use_ocaml-aiger, use_ocaml-cudd
-<boolean.*> or <expression.*>: use_ocaml-aiger, use_ocaml-cudd
+<*.ml>: use_ocaml-aiger, use_ocaml-cudd, use_speculoos
+<*.mli>: use_ocaml-aiger, use_ocaml-cudd, use_speculoos
 <extendedExpression.*>: use_ocaml-aiger
-<attractor.*> or <region.*>: use_ocaml-aiger, use_ocaml-cudd
-<admissibility.*>: use_ocaml-aiger, use_ocaml-cudd
-<proposition.*> or <regularExpression.*> or <sequence.*>: use_ocaml-aiger, use_ocaml-cudd
 <verilog.*>: use_ocaml-aiger
 <reglisse.*> : pp(camlp4o), use_ocaml-aiger, use_ocaml-cudd
 <timer.*> or <aigerBdd.*> or <simulation.*>: use_unix
-<simulation.*> : use_ocaml-aiger, use_ocaml-cudd
-<strategy.*> : use_ocaml-aiger, use_ocaml-cudd
-<game.*> : use_ocaml-aiger, use_ocaml-cudd
 <main.*> : use_ocaml-aiger, use_ocaml-cudd, use_unix
+<simulation.*>: use_ocaml-aiger, use_ocaml-cudd

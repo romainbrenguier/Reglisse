@@ -4,6 +4,9 @@ let output_game = ref true
 let output_product = ref true
 let display_total_time = ref false
 let synthesis_method = ref Classical
+let input_file = ref ""
+
+let set_input_file f = input_file := f
 
 let arguments = 
   let open Arg in
@@ -13,6 +16,7 @@ let arguments =
     "-t", Set display_total_time, "Display total time";
     "-w", Set Timer.display_warning, "Display warnings";
     "-d", Set Common.display_debug, "Display debug informations";
+(*    "-b", Int (fun x -> Reglisse.not_always_bound := x), "Set the bound to use to interpret not always instructions";*)
     "-m", Int (function  
 	       | 0 -> synthesis_method := Classical
 	       | 1 -> synthesis_method := Cooperative
@@ -28,7 +32,7 @@ let write_aiger name aig =
   let output_file = name^".aag" in
   Timer.log ("writing aiger in "^output_file);
   let outch = open_out output_file in
-  Aiger.write aig outch;
+  AigerImperative.write outch aig;
   close_out outch
 
 let write_verilog file module_name aig =
@@ -72,11 +76,14 @@ exception NoMainModule
 (* compute an aiger representation of a winning strategy in the game *)
 let general_synthesis game =
   let open Game in
+  Timer.log "General synthesis";
   if !Common.display_debug then 
     (print_endline "Controllables:\n";
-     List.iter (fun x -> print_endline (AigerBdd.Variable.to_string x)) game.contr;
+     List.iter (fun x -> print_endline (BddVariable.to_string x)) game.contr;
      print_endline "Uncontrollables:\n";
-     List.iter (fun x -> print_endline (AigerBdd.Variable.to_string x)) game.uncontr
+     List.iter (fun x -> print_endline (BddVariable.to_string x)) game.uncontr;
+     print_endline "Game:\n";
+     AigerImperative.write stdout game.aiger
     );
   let winning = Attractor.safe game in
   if Region.includes_initial winning 
@@ -84,6 +91,10 @@ let general_synthesis game =
   else (Timer.log "unrealizable"; raise Unrealizable);
   let strat = Strategy.of_region game.circuit winning in
   let aiger_strat = Strategy.to_aiger game.aiger strat game.contr game.uncontr in
+  if !Common.display_debug then 
+    (print_endline "Strategy as aiger file:";
+     AigerImperative.write stdout game.aiger
+    );
   aiger_strat
 
   
@@ -319,11 +330,13 @@ let admissible_synthesis modules =
     with Some x -> x | None -> raise NoMainModule
 
 
+let parse_arguments =
+  Arg.parse arguments set_input_file "usage: ./reglisse <options> spec.rgl"
 
-let main file = 
-  let specs = Reglisse.parse_file file in
+let main = 
+  let specs = Reglisse.parse_file !input_file in
   Cudd.init 100;
-  Timer.log ("Parsed file "^file);
+  Timer.log ("Parsed file "^ !input_file);
 
   let aig = match !synthesis_method with 
     | Classical -> classical_synthesis specs 
@@ -332,17 +345,10 @@ let main file =
     | Admissible -> admissible_synthesis specs 
   in
   Timer.log "exporting to aiger";
-  write_aiger file aig;
-  Timer.log "exporting to verilog";
-  write_verilog file "Main" aig;
+  write_aiger !input_file aig;
+  (*Timer.log "exporting to verilog";
+  write_verilog !input_file "Main" aig;*)
   if !display_total_time then (Timer.display (); print_newline ())
 
-
-  
-let parse_arguments =
-  Arg.parse arguments main "usage: ./reglisse <options> spec.rgl"
-
-  
-    
 
   

@@ -87,15 +87,15 @@ let to_expression prop inputs =
 	if i = 1 then List.assoc s inputs 
 	else if i = 0 then Expression.neg (List.assoc s inputs) else
 	  failwith "comparison with integers is not implemented"
-      with Not_found -> failwith ("variable "^s^" not found in RegularExpression.Proposition.to_expression "^to_string prop)
+      with Not_found -> failwith ("variable "^s^" not found in Proposition.to_expression "^to_string prop)
 
   in aux prop
   
 let to_bdd prop = 
   let rec aux = function
     | Var (s,i) -> 
-	(*Printf.printf "to_bdd: using lit %d for symbol %s\n" (Aiger.lit2int (Aiger.symbol2lit aiger (s,None))) s;*)
-      let bdd_of_symbol = AigerBdd.Variable.to_bdd (AigerBdd.Variable.find (AigerBdd.of_aiger_symbol (s,None))) in
+      (*Printf.printf "to_bdd: using lit %d for symbol %s\n" (Aiger.lit2int (Aiger.symbol2lit aiger (s,None))) s;*)
+      let bdd_of_symbol = BddVariable.to_bdd (BddVariable.find s) in
       if i = 1
       then bdd_of_symbol
       else if i = 0

@@ -19,7 +19,7 @@ val alt : t list -> t
 val concat : t -> t -> t
 
 (** Conversion to an Aiger cicuit which accept the language corresponding to the expression *)
-val to_aiger : ?prefix:string -> t -> Aiger.t
+val to_aiger : ?prefix:string -> t -> AigerImperative.t
 
 (** Parse a regular expression *)
 val of_string : string -> t

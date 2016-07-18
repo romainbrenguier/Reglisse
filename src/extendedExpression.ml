@@ -1,4 +1,5 @@
 (** Extension to regular expression *)
+module Aiger = AigerImperative
 
 type t = 
   | Regexp of RegularExpression.t
@@ -18,22 +19,58 @@ let id_cnt = ref 0
 let new_id () = incr id_cnt; "_ext"^string_of_int !id_cnt
 
 (* usefull for concatenation *)
-(* add a copy of aiger2 in aiger1, changing the literal of aiger2 to point to an literal of aiger1 *)
+(* add a copy of aiger2 in aiger1, changing the literal of aiger2 to point to a literal of aiger1 *)
 let replace_lit_by_output aiger1 lit1 aiger2 lit2 =
   let aig = aiger1 in
   let mapping = Hashtbl.create aiger2.Aiger.maxvar in
   let add_mapping lit nlit = 
     Hashtbl.replace mapping lit nlit in
   let find_mapping lit = 
-    if Aiger.sign lit 
+    (*if Aiger.sign lit 
     then Aiger.aiger_not (Hashtbl.find mapping (Aiger.aiger_not lit))
-    else Hashtbl.find mapping lit 
+    else*) Hashtbl.find mapping lit 
   in
 
   add_mapping Aiger.aiger_false Aiger.aiger_false;
   add_mapping Aiger.aiger_true Aiger.aiger_true;
 
+  Aiger.LitSet.fold
+      (fun _ lit2 () -> 
+	let sym = Aiger.lit2string_exn aiger2 lit2 in
+	try 
+	  let lit1 = Aiger.string2lit_exn aiger1 sym in
+	  add_mapping lit2 lit1
+	with Not_found -> 
+	  let lit = Aiger.add_input aig sym in
+	  add_mapping lit2 lit
+      ) aiger2.Aiger.inputs ();
+  
+  Hashtbl.iter
+      (fun lhs _ -> 
+	let sym = Aiger.lit2string_exn aiger2 lhs in
+	let lit = Aiger.add_latch aig sym in
+	add_mapping lhs lit
+      ) aiger2.Aiger.latches;
 
+  Hashtbl.iter 
+      (fun lhs (rhs0,rhs1) -> 
+	let lit = Aiger.conj aig (find_mapping rhs0) (find_mapping rhs1) in
+	add_mapping lhs lit
+      ) aiger2.Aiger.ands;
+
+  Hashtbl.iter
+    (fun lhs rhs -> 
+      Aiger.set_latch_update aig (find_mapping lhs) (find_mapping rhs) 
+    ) aiger2.Aiger.latches;
+
+  Aiger.LitSet.fold 
+    (fun _ o () -> 
+      let sym = Aiger.lit2string_exn aiger2 o in
+      Aiger.set_output aig sym (find_mapping o)
+    ) aiger2.Aiger.outputs ();
+  aig
+
+(*
   let aig = 
     List.fold_left 
       (fun aig lit2 -> 
@@ -89,7 +126,7 @@ let replace_lit_by_output aiger1 lit1 aiger2 lit2 =
   in
 
   let aig = AigerBdd.reorder_aiger aig in
-  aig
+  aig*)
 
 let rec to_aiger ?(prefix="") = function 
   | Regexp r -> RegularExpression.to_aiger ~prefix r 
@@ -99,23 +136,21 @@ let rec to_aiger ?(prefix="") = function
      let aig1 = to_aiger ~prefix:id1 a in
      let aig2 = to_aiger ~prefix:id2 b in
      let aig = Aiger.compose aig1 aig2 in
-     let g1 = Aiger.symbol2lit aig (id1^"_accept",Some 0) in
-     let g2 = Aiger.symbol2lit aig (id2^"_accept",Some 0) in
-     let aig, v = Aiger.new_var aig in
-     let lit = Aiger.var2lit v in
-     let aig = Aiger.add_and aig lit g1 g2 in
-     let aig = Aiger.add_output aig lit (prefix^"_accept",Some 0) in
-     let aig = Aiger.hide aig (id1^"_accept",Some 0) in
-     let aig = Aiger.hide aig (id2^"_accept",Some 0) in
+     let g1 = Aiger.string2lit_exn aig (id1^"_accept") in
+     let g2 = Aiger.string2lit_exn aig (id2^"_accept") in
+     let lit = Aiger.conj aig g1 g2 in
+     Aiger.set_output aig (prefix^"_accept") lit;
+     Aiger.hide aig (id1^"_accept");
+     Aiger.hide aig (id2^"_accept");
      aig
 
   | Neg a ->
      let id1 = prefix^new_id () in
      let aig1 = to_aiger ~prefix:id1 a in
-     let g1 = Aiger.symbol2lit aig1 (id1^"_accept",Some 0) in
-     let aig = Aiger.add_output aig1 (Aiger.aiger_not g1) (prefix^"_accept",Some 0) in
-     let aig = Aiger.hide aig (id1^"_accept",Some 0) in
-     aig
+     let g1 = Aiger.string2lit_exn aig1 (id1^"_accept") in
+     Aiger.set_output aig1 (prefix^"_accept") (Aiger.neg g1);
+     Aiger.hide aig1 (id1^"_accept");
+     aig1
 				  
   | Alt (hd::tl) ->
      let id = prefix^new_id () in
@@ -126,20 +161,18 @@ let rec to_aiger ?(prefix="") = function
 	  let id2 = prefix^new_id () in
 	  let aig2 = to_aiger ~prefix:id2 expr in
 	  let aig = Aiger.compose aig aig2 in
-	  let g1 = Aiger.symbol2lit aig (id1^"_accept",Some 0) in
-	  let g2 = Aiger.symbol2lit aig (id2^"_accept",Some 0) in
-	  let aig, v = Aiger.new_var aig in
-	  let lit = Aiger.var2lit v in
-	  let aig = Aiger.add_and aig lit (Aiger.aiger_not g1) (Aiger.aiger_not g2) in
+	  let g1 = Aiger.string2lit_exn aig (id1^"_accept") in
+	  let g2 = Aiger.string2lit_exn aig (id2^"_accept") in
+	  let lit = Aiger.conj aig (Aiger.neg g1) (Aiger.neg g2) in
 	  let id3 = prefix^new_id () in
-	  let aig = Aiger.add_output aig (Aiger.aiger_not lit) (id3^"_accept",Some 0) in
-	  let aig = Aiger.hide aig (id1^"_accept",Some 0) in
-	  let aig = Aiger.hide aig (id2^"_accept",Some 0) in
+	  Aiger.set_output aig (id3^"_accept") (Aiger.neg lit);
+	  Aiger.hide aig (id1^"_accept");
+	  Aiger.hide aig (id2^"_accept");
 	  aig, id3
 	 ) (aig,id) tl
      in 
      
-     let aig = Aiger.rename aig [(id^"_accept",Some 0), (prefix^"_accept",Some 0)] in
+     Aiger.rename aig (fun x -> if x = (id^"_accept") then (prefix^"_accept") else x);
      aig 
 
   | Alt [] -> 
@@ -150,10 +183,10 @@ let rec to_aiger ?(prefix="") = function
      let aig1 = to_aiger ~prefix:id1 a in
      let id2 = prefix^new_id () in
      let aig2 = to_aiger ~prefix:id2 b in 
-     let lit1 = Aiger.symbol2lit aig1 (id1^"_accept",Some 0) in 
-     let lit2 = Aiger.symbol2lit aig2 (id2^"_init",Some 0) in
+     let lit1 = Aiger.string2lit_exn aig1 (id1^"_accept") in 
+     let lit2 = Aiger.string2lit_exn aig2 (id2^"_init") in
      let aig = replace_lit_by_output aig1 lit1 aig2 lit2 in
-     let aig = Aiger.hide aig (id1^"_accept",Some 0) in
-     let aig = Aiger.rename aig [(id2^"_accept",Some 0),(prefix^"_accept",Some 0)] in
+     Aiger.hide aig (id1^"_accept");
+     Aiger.rename aig (fun x -> if x = (id2^"_accept") then (prefix^"_accept") else x);
      aig
 

@@ -19,8 +19,8 @@ val value : ?weak:bool -> Game.t -> value -> Region.t
 (** States from which there is no hope of winning. *)
 val losing : Game.t -> Region.t
 
-val strategies : AigerBdd.Circuit.t -> (value -> Region.t) -> Strategy.t
+val strategies : Circuit.t -> (value -> Region.t) -> Strategy.t
 
 val admissible_strategies : Game.t -> int * Strategy.t
-val compositional_synthesis : Game.t list -> Aiger.t * AigerBdd.Circuit.t * AigerBdd.VariableSet.t * Region.t
+(*val compositional_synthesis : Game.t list -> Aiger.t * Circuit.t * AigerBdd.VariableSet.t * Region.t*)
 

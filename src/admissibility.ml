@@ -1,5 +1,6 @@
 open Game
 open Attractor
+module Aiger = AigerImperative
 
 type value = Winning | CoopWinning | Help | Losing | NotWinning | NotLosing
 
@@ -55,6 +56,7 @@ let admissible_strategies game =
    else if Region.includes_initial (v Losing) then -1
    else 0), strategies game.circuit v
 
+(*
 let compositional_synthesis game_list =
   let admissibles = List.map snd (List.map admissible_strategies game_list) in
   
@@ -63,7 +65,7 @@ let compositional_synthesis game_list =
 
   let product = 
     List.fold_left 
-      (fun accu g -> Aiger.compose accu g.aiger) Aiger.empty game_list
+      (fun accu g -> Aiger.compose accu g.aiger) (List.hd game_list) (List.tl game_list)
   in
   Timer.log "aiger product finished";
 
@@ -105,3 +107,4 @@ let compositional_synthesis game_list =
   Timer.log "winning strategy in the product finished";
 
   product,product_bdd,controllable_inputs,winning 
+*)

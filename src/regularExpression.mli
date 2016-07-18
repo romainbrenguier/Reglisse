@@ -10,6 +10,8 @@ type t =
 (** The grammar for regular expression is given by : 
 r ::= r | r ; r & r ; r* ; r r; (r); { p }; r+ ; r?; .
 p ::= p | p ; p & p ; !p ; p <-> p; (p); ident ; true
+
+For conjunction and negation see the extendedExpression module.
 *)
 val of_string : string -> t
 
@@ -39,7 +41,7 @@ val to_string : t -> string
     an accepting state.
     Cudd has to be initialized before calling this function.
 *)
-val to_aiger : ?prefix:string -> t -> Aiger.t
-val regexp : string -> Aiger.t
+val to_aiger : ?prefix:string -> t -> AigerImperative.t
+val regexp : string -> AigerImperative.t
 
 val test : string -> unit

@@ -6,7 +6,7 @@ let successors game valuation inputs =
   let bdd_val = AigerBdd.bdd_of_valuation valuation in
   let bdd_inp = AigerBdd.bdd_of_valuation inputs in
   let bdd = Cudd.bddAnd bdd_val bdd_inp in
-  let update = AigerBdd.Circuit.updates game in
+  let update = Circuit.updates game in
   let new_val = 
     AigerBdd.VariableMap.fold
       (fun var _ accu -> 
@@ -27,7 +27,8 @@ let successors game valuation inputs =
 
 let input_inputs aiger =
   List.fold_left
-    (fun state name -> 
+    (fun state name ->
+      failwith "unimplemented"(*
       let size = Aiger.size_symbol aiger name in
       Printf.printf "%s [%d,%d] ?\n> " name 0 (exp size - 1);
       let b = read_int () in 
@@ -40,53 +41,57 @@ let input_inputs aiger =
 	  else
 	    ((*Printf.printf "%s[%d] = var %d\n" name i (AigerBdd.Variable.to_int (AigerBdd.Variable.find (name,i)));*)
 	     let new_state = 
-	       AigerBdd.VariableMap.add (AigerBdd.Variable.find (name,i)) ((b lsr i) mod 2 = 1) state
+	       AigerBdd.VariableMap.add (AigerBdd.Variable.find (name^"<"^string_of_int i^">")) ((b lsr i) mod 2 = 1) state
 	     in loop new_state (i+1))
 
-	in loop state 0
+	in loop state 0*)
     ) 
     AigerBdd.VariableMap.empty
-    (Aiger.inputs aiger)
+    (AigerImperative.inputs aiger)
 
  
 let main =
   if Array.length Sys.argv < 2 then prerr_endline "usage: simulation <aiger file>";
   Printf.printf "reading from %s\n" Sys.argv.(1);
-  let aiger = Aiger.read_from_file Sys.argv.(1) in
+  let aiger = AigerImperative.read_from_file Sys.argv.(1) in
   AigerBdd.init aiger; 
   
   let state = 
+    failwith "in Simulation.main: not implemented"
+(*
     AigerBdd.valuation_of_list 
       (List.fold_left 
 	 (fun accu name -> 
-	  let literals = Aiger.name_to_literals aiger name in
+	   let literals = AigerImperative.name_to_literals aiger name in
 	  let variables = 
 	    Array.mapi 
 	      (fun i lit -> 
-	       let v = AigerBdd.Variable.find (name,i) 
+		let v = AigerBdd.Variable.find (name^"<"^string_of_int i^">") 
 					      (*try 
 		 with x -> if i = 0 then AigerBdd.Variable.find (name,None) else raise x*)
 	       in (v,false)
 	      ) literals
 	  in List.rev_append (Array.to_list variables) accu
-	 ) [] (List.rev_append (Aiger.latches aiger) (Aiger.outputs aiger))
+	 ) [] (List.rev_append (AigerImperative.latches aiger) (AigerImperative.outputs aiger))
       )
+*)
   in
 
-  let game = AigerBdd.Circuit.of_aiger aiger in
+  let game = Circuit.of_aiger aiger in
 
   let outputs_latches = 
-    if display_latches 
+    failwith "in Simulation.main: not implemented"
+      (*if display_latches 
     then List.rev_append (Aiger.outputs aiger) (Aiger.latches aiger) 
-    else Aiger.outputs aiger
+    else Aiger.outputs aiger*)
   in
 
-  AigerBdd.Circuit.print_valuation aiger outputs_latches state;
+  Circuit.print_valuation aiger outputs_latches state;
   let rec loop state = 
     try 
       let inputs = input_inputs aiger in
       let new_state = successors game state inputs in
-      AigerBdd.Circuit.print_valuation aiger outputs_latches new_state;
+      Circuit.print_valuation aiger outputs_latches new_state;
       loop new_state
     with
     | End_of_file -> state
