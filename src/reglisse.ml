@@ -282,7 +282,8 @@ let safety_to_game modul =
   let prefix = "never_"^modul.module_name in
   match safety_to_aiger ~prefix modul with
   | Some aig ->
-     Some ( Game.of_aiger ~aig ~inputs:modul.inputs ~outputs:modul.outputs ~errors:[prefix^"_accept"])
+     (Timer.log "Game generated from safety condition";
+      Some (Game.of_aiger ~aig ~inputs:modul.inputs ~outputs:modul.outputs ~errors:[prefix^"_accept"]))
   | None -> None
 
 let functional_to_aiger t = 

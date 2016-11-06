@@ -55,8 +55,10 @@ let control aiger inputs outputs =
 let initial_state g = 
   Region.initial_state g.aiger
 
-let of_aiger ~aig ~inputs ~outputs ~errors = 
+let of_aiger ~aig ~inputs ~outputs ~errors =
+  Timer.log "Game.of_aiger : importing AIG";
   let circuit = Circuit.of_aiger aig in
+  Timer.log "Game.of_aiger : AIG imported";
   let error_bdds =
     List.map
       (fun x -> BddVariable.to_bdd (BddVariable.find x))
@@ -65,6 +67,7 @@ let of_aiger ~aig ~inputs ~outputs ~errors =
   let err = List.fold_left Cudd.bddOr (Cudd.bddFalse()) error_bdds in
   let contr,uncontr = control aig inputs outputs in 
   let game = {aiger=aig; circuit; contr; uncontr; err} in
+  Timer.log "Game generator from AIG";
   game
 
 let product game_list =

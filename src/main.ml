@@ -131,10 +131,11 @@ let classical_synthesis modules =
 *)
   in match modules with 
   | [m] ->   
-    (
-      match Reglisse.safety_to_game m with
-      | Some game -> general_synthesis game
-      | None -> failwith "in Main.classical_synthesis: Reglisse.safety_to_game failed"
+     (
+       Timer.log "Single module. Generating safety game";
+       match Reglisse.safety_to_game m with
+       | Some game -> general_synthesis game
+       | None -> failwith "in Main.classical_synthesis: Reglisse.safety_to_game failed"
     )
   | _ ->
     List.iter aux modules;

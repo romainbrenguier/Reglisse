@@ -1,4 +1,4 @@
-let display_log = ref false
+let display_log = ref true
 let display_warning = ref false
 
 let display () =

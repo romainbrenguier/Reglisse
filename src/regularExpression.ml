@@ -418,7 +418,6 @@ let automaton_to_aiger ?(prefix="") auto =
       (fun gate s -> 
 	(* We should make a cleaner way to find the corresponding literal *)
 	let lit_name = prefix^"_state_"^string_of_int s(*^"<0>"*) in
-	print_endline ("looking for "^lit_name);
 	let lit_state = AigerImperative.string2lit_exn aig lit_name in
 	AigerImperative.conj aig gate (AigerImperative.neg lit_state)
       ) AigerImperative.aiger_true auto.accept
