@@ -100,10 +100,10 @@ let input2gate aiger input gate =
 Replace the input by the BDD, and also put it as an output
 *)
 let input_output_from_bdd aiger input bdd =
-  let map = AigerBdd.map_of_aiger aiger in
-  let input_lit = AigerBdd.VariableMap.find input map in
+  let map = AigerImpBdd.map_of_aiger aiger in
+  let input_lit = AigerImpBdd.VariableMap.find input map in
   let sym = Aiger.lit2string_exn aiger input_lit in
-  let gate = AigerBdd.add_bdd_to_aiger aiger AigerBdd.VariableMap.empty bdd in
+  let gate = AigerImpBdd.add_bdd_to_aiger aiger AigerImpBdd.VariableMap.empty bdd in
   let aiger,gate = input2gate aiger input_lit gate in
   Aiger.set_output aiger sym gate
 

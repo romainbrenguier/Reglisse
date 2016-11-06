@@ -281,12 +281,14 @@ let safety_to_aiger ?(prefix="never") t =
 let safety_to_game modul = 
   let prefix = "never_"^modul.module_name in
   match safety_to_aiger ~prefix modul with
-  | Some aig -> Some ( Game.of_aiger ~aig ~inputs:modul.inputs ~outputs:modul.outputs ~errors:[prefix^"_accept"])
+  | Some aig ->
+     Some ( Game.of_aiger ~aig ~inputs:modul.inputs ~outputs:modul.outputs ~errors:[prefix^"_accept"])
   | None -> None
 
 let functional_to_aiger t = 
   match t.content with 
-  | Functional (vars,updates) -> Some (Expression.functional_synthesis updates )
+  | Functional (vars,updates) ->
+     Some (Speculoos.to_aig_imp (Speculoos.Seq (List.map (fun (a,b) -> Speculoos.Update(a,b)) updates)))
   | _ -> None 
 
 
@@ -333,9 +335,9 @@ let calls_to_aiger ?(env=Env.default) t =
       (
 	List.fold_left 
 	  (fun aiger (module_name,arguments) ->
-	    Common.debug ("Calling "^module_name);
+	    ReglisseCommon.debug ("Calling "^module_name);
 	    let renaming = List.combine (Env.find_arguments_exn env module_name) arguments in
-	   if !Common.display_debug
+	   if !ReglisseCommon.display_debug
 	   then List.iter (fun (a,b) -> Printf.printf "renaming %s into %s\n" a b) renaming;
 	   (* prerr_endline "we should also rename hidden outputs? so that there are no collisions"; *)
 	    let module_aig = Env.find_aiger_exn env module_name in
@@ -368,14 +370,14 @@ let calls_to_game env modules t =
       List.map 
 	(fun (module_name,arguments) ->
 	 incr cnt;
-	 Common.debug ("Calling "^module_name);
+	 ReglisseCommon.debug ("Calling "^module_name);
 	 let m = Hashtbl.find modules module_name in
 	 let prefix = prefix()^module_name in
 	 match safety_to_aiger ~prefix m with
 	 | None -> failwith "in Reglisse.calls_to_game: could not convert the safety condition to an AIG circuit"
 	 | Some aiger -> 
 	    let renaming = List.combine (Env.find_arguments_exn env module_name) arguments in
-	    if !Common.display_debug
+	    if !ReglisseCommon.display_debug
 	    then List.iter (fun (a,b) -> Printf.printf "renaming %s into %s\n" a b) renaming;
 	    AigerImperative.rename aiger (fun x -> try List.assoc x renaming with Not_found -> x);
 	    aiger, {call=module_name;renaming}, (prefix^"_accept")

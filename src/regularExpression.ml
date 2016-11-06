@@ -1,5 +1,5 @@
 open Expression
-module StringSet = Common.StringSet
+module StringSet = ReglisseCommon.StringSet
 
 type t = 
 | Prop of Proposition.t 
@@ -18,8 +18,6 @@ let rec to_string = function
   | Epsilon -> " epsilon "
   | Empty -> " nothing "
   | Prop p -> " { "^Proposition.to_string p^" } " 
-
-
 
 let rec accepts_epsilon = function
   | Alt l -> List.fold_left (fun accu x -> accepts_epsilon x || accu) false l
@@ -307,10 +305,7 @@ let coaccessible auto =
   in 
 
   let accept = auto.accept in
-
   let coreach = loop (int_set_of_list accept) in
-
-
   let init = List.filter (fun t -> IntSet.mem t coreach) auto.init in 
 
   let transitions = 
@@ -387,24 +382,26 @@ let automaton_to_aiger ?(prefix="") auto =
   in
 
   let aig = 
-    functional_synthesis 
-    (
-      [
-	init, bool true;
-	accept, acceptation
-      ]
+    Speculoos.to_aig_imp
+      (Speculoos.Seq
+	 (
+	   [
+	     Speculoos.Update(init, bool true);
+	     Speculoos.Update(accept, acceptation)
+	   ]
       @ 
 	IntSet.fold
-	  (fun s accu ->
-	   (IntMap.find s state_var, 
+	     (fun s accu ->
+	       Speculoos.Update
+	    (IntMap.find s state_var, 
 	    ite init
 		(try IntMap.find s trans_map
 		 with Not_found -> 
 		   Common.debug ("warning: transition for state "^string_of_int s^" not found"); bool false)
 		(IntMap.find s initials))
 	   :: accu
-	  ) (states auto) []
-    )
+	     ) (states auto) []))
+      
   in
 
   (try

@@ -15,7 +15,7 @@ let arguments =
     "-l", Set Timer.display_log, "Display logs";
     "-t", Set display_total_time, "Display total time";
     "-w", Set Timer.display_warning, "Display warnings";
-    "-d", Set Common.display_debug, "Display debug informations";
+    "-d", Set ReglisseCommon.display_debug, "Display debug informations";
 (*    "-b", Int (fun x -> Reglisse.not_always_bound := x), "Set the bound to use to interpret not always instructions";*)
     "-m", Int (function  
 	       | 0 -> synthesis_method := Classical
@@ -77,7 +77,7 @@ exception NoMainModule
 let general_synthesis game =
   let open Game in
   Timer.log "General synthesis";
-  if !Common.display_debug then 
+  if !ReglisseCommon.display_debug then 
     (print_endline "Controllables:\n";
      List.iter (fun x -> print_endline (BddVariable.to_string x)) game.contr;
      print_endline "Uncontrollables:\n";
@@ -91,7 +91,7 @@ let general_synthesis game =
   else (Timer.log "unrealizable"; raise Unrealizable);
   let strat = Strategy.of_region game.circuit winning in
   let aiger_strat = Strategy.to_aiger game.aiger strat game.contr game.uncontr in
-  if !Common.display_debug then 
+  if !ReglisseCommon.display_debug then 
     (print_endline "Strategy as aiger file:";
      AigerImperative.write stdout game.aiger
     );

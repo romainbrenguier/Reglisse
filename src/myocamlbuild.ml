@@ -14,11 +14,9 @@ let () =
 	flag ["ocaml";"link";"use_ocaml-aiger"]
 	  (S[P "../../ocaml-aiger/_build/aiger.cma"; P "../../ocaml-aiger/_build/aigerImperative.cma"]);
 
-	flag ["doc";"use_speculoos"] 
-	  (S[A "-I"; P "../../Speculoos/_build"]);
-	flag ["ocaml";"compile";"use_speculoos"]
-	  (S[A "-I"; P "../../Speculoos/_build"]);
 
+
+	
 	flag ["ocaml";"compile";"use_ocaml-cudd"]
 	  (S[A "-I"; P "../../ocaml-cudd/_build"]);
 	flag ["ocaml";"compile";"syntax_extension"] 
@@ -45,5 +43,30 @@ let () =
 	    P"../../ocaml-cudd/cudd-2.5.0/mtr/libmtr.a";
 	    P"../../ocaml-cudd/cudd-2.5.0/st/libst.a";
 	  ]);
+		flag ["doc";"use_speculoos"] 
+	  (S[A "-I"; P "../../Speculoos/_build"]);
+	flag ["ocaml";"compile";"use_speculoos"]
+	  (S[A "-I"; P "../../Speculoos/_build"]);
+
+
+	flag ["ocaml";"link";"use_speculoos"]
+	  (S[
+            P "../../Speculoos/_build/bddVariable.cmo";
+	    P "../../Speculoos/_build/aigerImpBdd.cmo";
+	    P "../../Speculoos/_build/circuit.cmo";
+	    P "../../Speculoos/_build/common.cmo";
+	    P "../../Speculoos/_build/type.cmo";
+	    P "../../Speculoos/_build/aigerBdd.cmo";
+	    P "../../Speculoos/_build/boolean.cmo";
+	    P "../../Speculoos/_build/integer.cmo";
+	    P "../../Speculoos/_build/expression.cmo";
+	    P "../../Speculoos/_build/synthesis.cmo";
+	    P "../../Speculoos/_build/synthesisImp.cmo";
+	    P "../../Speculoos/_build/speculoos.cmo";
+	     (* speculoosCompiler.cmo
+		P "../../Speculoos/_build/parser.cmo" 		       
+		"synthesisImp.cmo 	type.cmo";*)
+	    ]);
+
       | _ -> ()
     )

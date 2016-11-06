@@ -1,4 +1,4 @@
-open Common
+open ReglisseCommon
 
 let display_latches = false
 

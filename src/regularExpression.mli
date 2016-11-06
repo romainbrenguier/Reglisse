@@ -32,7 +32,7 @@ val opt : t -> t
 val prop : Proposition.t -> t
 
 (** Labels appearing in the expression *)
-val labels : t -> Common.StringSet.t
+val labels : t -> ReglisseCommon.StringSet.t
 
 val to_string : t -> string
 

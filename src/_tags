@@ -1,9 +1,10 @@
 <*.ml>: pp(camlp4o)
 <*.ml>: use_ocaml-aiger, use_ocaml-cudd, use_speculoos
 <*.mli>: use_ocaml-aiger, use_ocaml-cudd, use_speculoos
+<*.cmo>: use_ocaml-aiger, use_ocaml-cudd, use_speculoos
 <extendedExpression.*>: use_ocaml-aiger
 <verilog.*>: use_ocaml-aiger
-<reglisse.*> : pp(camlp4o), use_ocaml-aiger, use_ocaml-cudd
+<reglisse.*> : pp(camlp4o), use_ocaml-aiger, use_ocaml-cudd, use_speculoos
 <timer.*> or <aigerBdd.*> or <simulation.*>: use_unix
-<main.*> : use_ocaml-aiger, use_ocaml-cudd, use_unix
+<main.*> : use_ocaml-aiger, use_ocaml-cudd, use_speculoos, use_unix
 <simulation.*>: use_ocaml-aiger, use_ocaml-cudd

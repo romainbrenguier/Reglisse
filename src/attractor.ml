@@ -54,7 +54,7 @@ let test aiger =
   in
 
   let (contrv,uncontrv) = Game.controllable_variables aiger in 
-  if !Common.display_debug then List.iter (fun x -> Printf.printf "%d controllable\n" (BddVariable.to_int x)) contrv;
+  if !ReglisseCommon.display_debug then List.iter (fun x -> Printf.printf "%d controllable\n" (BddVariable.to_int x)) contrv;
 
   AigerImpBdd.init aiger;
   let unsafe = List.fold_left Cudd.bddOr (Cudd.bddFalse()) (List.map bdd_of_lit (AigerImperative.LitSet.elements aiger.AigerImperative.outputs)) in
@@ -66,7 +66,7 @@ let test aiger =
   let initial_losing = Cudd.bddRestrict (Region.latch_configuration trap_set) initial in
   let initial_losing_weak = Cudd.bddRestrict (Region.latch_configuration trap_set_weak) initial in
 
-  if !Common.display_debug 
+  if !ReglisseCommon.display_debug 
   then Cudd.dumpDot ("trap.dot") (Region.latch_input_configuration trap_set);
 
   if Cudd.value initial_losing = 1 
@@ -90,7 +90,7 @@ let test aiger =
   else (Cudd.dumpDot ("problem_report.out") initial_losing_weak;  print_endline "problem...")
 
 let main = 
-  (* Common.display_debug := true;*)
+  (* ReglisseCommon.display_debug := true;*)
   if Filename.check_suffix Sys.argv.(0) "attractor" 
      || Filename.check_suffix Sys.argv.(0) "attractor.byte" 
   then 

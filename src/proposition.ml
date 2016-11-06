@@ -58,11 +58,11 @@ let rec to_string = function
 let compare a b = compare a b
 
 let rec labels = function
-  | Var (s,i) -> Common.StringSet.singleton s
-  | And (a,b) -> Common.StringSet.union (labels a) (labels b)
-  | Or (a,b) -> Common.StringSet.union (labels a) (labels b)
+  | Var (s,i) -> ReglisseCommon.StringSet.singleton s
+  | And (a,b) -> ReglisseCommon.StringSet.union (labels a) (labels b)
+  | Or (a,b) -> ReglisseCommon.StringSet.union (labels a) (labels b)
   | Not a -> labels a
-  | True | False -> Common.StringSet.empty
+  | True | False -> ReglisseCommon.StringSet.empty
 
 let to_speculog prop = 
   let rec aux = function 
