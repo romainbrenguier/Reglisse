@@ -405,15 +405,21 @@ let automaton_to_aiger ?(prefix="") auto =
   in
 
   (try
-    AigerImperative.hide aig (prefix^"_accept<0>") 
-   with Not_found -> 
+    AigerImperative.hide aig (prefix^"_accept") 
+   with
+     AigerImperative.Correspondance_not_found x -> 
      Printf.eprintf "Warning: problem in RegularExpression, Aiger.hide raised not found on %s_accept<0>\n" prefix);
-    
+
+  (*print_endline "after hide AIG:";
+    AigerImperative.write stdout aig;*)
+  
   let no_accept =
     List.fold_left 
       (fun gate s -> 
 	(* We should make a cleaner way to find the corresponding literal *)
-	let lit_state = AigerImperative.string2lit_exn aig (prefix^"_state_"^string_of_int s^"<0>") in
+	let lit_name = prefix^"_state_"^string_of_int s(*^"<0>"*) in
+	print_endline ("looking for "^lit_name);
+	let lit_state = AigerImperative.string2lit_exn aig lit_name in
 	AigerImperative.conj aig gate (AigerImperative.neg lit_state)
       ) AigerImperative.aiger_true auto.accept
   in

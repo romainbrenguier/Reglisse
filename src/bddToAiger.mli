@@ -54,7 +54,7 @@ val constraint_synthesis : declaration list -> bool Integer.t list -> AigerImper
     The expression on the right should be an output or a register.
     Warning: if the expression on the right has size greater than the variable on the left, then its result is truncated. 
 *)
-val functional_synthesis : (Integer.t * Integer.t) list -> AigerImperative.t
+(*val functional_synthesis : (Integer.t * Integer.t) list -> AigerImperative.t*)
 
 (** list to keep track of currently declared variables *)
 val _declarations : declaration list

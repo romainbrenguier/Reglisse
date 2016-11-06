@@ -242,6 +242,7 @@ let types_of_updates updates =
   in
   inputs,outputs,latches
 
+    (*
 (* The declarations are unecessary, we could deduce them from the expressions *)
 let functional_synthesis (*declarations*) updates = 
   (*let types = of_declaration declarations in*)
@@ -267,7 +268,7 @@ let functional_synthesis (*declarations*) updates =
       ) ([],[]) updates 
   in
   AigerBdd.bdds_to_aiger (SymbolSet.elements inputs) latches_bdds outputs_bdds 
-    
+    *)
 let _declarations = []
 
 let print_aiger a = AigerImperative.write stdout a
