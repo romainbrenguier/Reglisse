@@ -25,6 +25,12 @@ let uncontrollable_predecessors_with_restriction unsafe aiger controllable_cube 
     let exist_quantified = Cudd.bddExistAbstract univ_quantified uncontrollable_cube in
     Region.of_bdds exist_quantified univ_quantified
 
+let uncontrollable_predecessors unsafe aiger controllable_cube uncontrollable_cube =
+  let restricted = rename_substitute_restrict unsafe aiger in
+  let univ_quantified = Cudd.bddUnivAbstract restricted controllable_cube in
+  let exist_quantified = Cudd.bddExistAbstract univ_quantified uncontrollable_cube in
+  Region.of_bdds exist_quantified univ_quantified
+
 let trap_with_restriction aiger controllables uncontrollables ?(weak=false) unsafe restriction =
   let controllable_cube = BddVariable.make_cube controllables in
   let uncontrollable_cube = BddVariable.make_cube uncontrollables in
@@ -37,7 +43,15 @@ let trap_with_restriction aiger controllables uncontrollables ?(weak=false) unsa
 
 
 let trap ?(weak=false) ?(strategy = (Strategy.conj [])) game =
-  trap_with_restriction game.circuit game.contr game.uncontr ~weak (Region.of_bdds game.err (Cudd.bddFalse())) strategy
+  let controllable_cube = BddVariable.make_cube game.contr in
+  let uncontrollable_cube = BddVariable.make_cube game.uncontr in
+  let aux u = 
+    Timer.debug "in Attractor.trap_with_restriction: uncontrollable_predecessor step";
+    uncontrollable_predecessors u game.circuit controllable_cube uncontrollable_cube
+  in 
+  Region.greatest_fixpoint aux (Region.of_bdds game.err (Cudd.bddFalse()))
+(*
+  trap_with_restriction game.circuit game.contr game.uncontr ~weak (Region.of_bdds game.err (Cudd.bddFalse())) strategy*)
 
 let safe ?(weak=false) ?(strategy = (Strategy.conj [])) game = Region.negation (trap ~weak ~strategy game)
 
@@ -48,31 +62,48 @@ let attractor aiger contr uncontr ?(weak=false) safe =
   attractor_with_restriction aiger contr uncontr ~weak (Region.of_bdds safe (Cudd.bddFalse())) (Strategy.conj [])
 
 
-let test aiger = 
-  let bdd_of_lit lit = 
-    BddVariable.to_bdd (BddVariable.find (AigerImperative.lit2string_exn aiger lit))
+let test aiger =
+  let bdd_of_lit lit =
+    match AigerImperative.lit2string aiger lit with
+    | Some s -> BddVariable.to_bdd (BddVariable.find s)
+    | None ->
+       if lit = 1 then Cudd.bddTrue() else
+	 if lit = 0 then Cudd.bddFalse() else raise Not_found
   in
-
+  
   let (contrv,uncontrv) = Game.controllable_variables aiger in 
   if !ReglisseCommon.display_debug then List.iter (fun x -> Printf.printf "%d controllable\n" (BddVariable.to_int x)) contrv;
 
   AigerImpBdd.init aiger;
-  let unsafe = List.fold_left Cudd.bddOr (Cudd.bddFalse()) (List.map bdd_of_lit (AigerImperative.LitSet.elements aiger.AigerImperative.outputs)) in
-  let initial = AigerImpBdd.bdd_of_valuation (Circuit.initial_state aiger) in
-  let circuit = Circuit.of_aiger aiger in   
+  let unsafe =
+    AigerImperative.LitSet.fold
+      (fun i lit ->
+	Cudd.bddOr (bdd_of_lit lit)
+      )	aiger.AigerImperative.outputs (Cudd.bddFalse())
+  in
+  print_endline "unsafe computed";
+  (*let init = Circuit.initial_state aiger in
+  print_endline "initial computed";
+  let initial = AigerImpBdd.bdd_of_valuation init in
+    print_endline "..";*)
+  let circuit = Circuit.of_aiger aiger in
+  ReglisseCommon.display_debug := true;
+  Timer.debug "circuit computed";
   let game = { aiger; circuit; contr=contrv; uncontr=uncontrv; err =unsafe} in
+  print_endline "trap computed";
   let trap_set = trap ~weak:false game in
   let trap_set_weak = trap ~weak:true game in
-  let initial_losing = Cudd.bddRestrict (Region.latch_configuration trap_set) initial in
-  let initial_losing_weak = Cudd.bddRestrict (Region.latch_configuration trap_set_weak) initial in
+  let initial_losing = (*Cudd.bddRestrict (Region.latch_configuration trap_set) initial in*)
+    Region.includes_initial trap_set in
+  let initial_losing_weak = (*Cudd.bddRestrict (Region.latch_configuration trap_set_weak) initial in*)
+      Region.includes_initial trap_set_weak in
 
   if !ReglisseCommon.display_debug 
   then Cudd.dumpDot ("trap.dot") (Region.latch_input_configuration trap_set);
 
-  if Cudd.value initial_losing = 1 
+  if initial_losing 
   then print_endline "unrealizable"
-  else if Cudd.value initial_losing = 0
-  then 
+  else 
     (print_endline "realizable";
      let strat = Strategy.to_aiger aiger (Strategy.of_region game.circuit (Region.negation trap_set)) contrv uncontrv in
      let file_name = Sys.argv.(1)^".controller.aag" in
@@ -80,22 +111,22 @@ let test aiger =
      AigerImperative.write outch strat;
      close_out outch;
      Printf.printf "controller written in file %s\n" file_name
-    )
-  else (Cudd.dumpDot ("problem_report.out") initial_losing;  print_endline "problem...");
+    );
   
-  if Cudd.value initial_losing_weak = 1 
+  if initial_losing_weak
   then print_endline "unrealizable by a weak controller"
-  else if Cudd.value initial_losing_weak = 0
-  then print_endline "realizable by a weak controller"
-  else (Cudd.dumpDot ("problem_report.out") initial_losing_weak;  print_endline "problem...")
+  else print_endline "realizable by a weak controller"
 
 let main = 
-  (* ReglisseCommon.display_debug := true;*)
+  ReglisseCommon.display_debug := true;
   if Filename.check_suffix Sys.argv.(0) "attractor" 
      || Filename.check_suffix Sys.argv.(0) "attractor.byte" 
-  then 
-    if Array.length Sys.argv < 2 
-    then Printf.printf "usage : %s <file>\n" Sys.argv.(0)
-    else 
-      let aiger = AigerImperative.read_from_file Sys.argv.(1) in
-      test aiger
+  then
+    (
+     if Array.length Sys.argv < 2 
+     then Printf.printf "usage : %s <file>\n" Sys.argv.(0)
+     else 
+       let aiger = AigerImperative.read_from_file Sys.argv.(1) in
+       print_endline "read from file:";
+       AigerImperative.write stdout aiger;
+       test aiger)

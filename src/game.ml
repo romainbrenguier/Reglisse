@@ -6,12 +6,13 @@ let controllable_name name =
      else false
 
 let controllables aiger = 
-  List.fold_left
-    (fun (c,u) lit -> 
+  Aiger.LitSet.fold
+    (fun i lit (c,u) ->
+      Printf.printf "looking for lit %d\n" lit;
       let name = Aiger.lit2string_exn aiger lit in
       if controllable_name name then (lit :: c, u) 
       else (c, lit :: u)
-    ) ([],[]) (Aiger.LitSet.elements aiger.Aiger.inputs)
+    ) ( aiger.Aiger.inputs) ([],[]) 
 
 let controllable_variables aiger =
   let aux = List.map (BddVariable.of_lit_exn aiger) in
