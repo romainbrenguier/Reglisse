@@ -17,5 +17,7 @@ val rename : t -> (string * string) list -> t
 (** Takes a BDD representing the winning strategy and the controllable and uncontrollable inputs and returns individual BDDs to control the controllable inputs *)
 val to_bdds : Cudd.bdd -> BddVariable.t list -> BddVariable.t list -> (BddVariable.t * Cudd.bdd) list
 
+val input2gate : AigerImperative.t -> AigerImperative.lit -> AigerImperative.lit -> (AigerImperative.t * AigerImperative.lit)
+  
 (** Takes the original aiger file, a BDD representing the winning strategy and the controllable and uncontrollable inputs *)
 val to_aiger : AigerImperative.t -> t -> BddVariable.t list -> BddVariable.t list -> AigerImperative.t

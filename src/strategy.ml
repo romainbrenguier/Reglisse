@@ -58,43 +58,50 @@ let to_bdds strategy controllables uncontrollables =
   assoc
 
 
-(*
-let substitute src dst i = 
-  if Aiger.strip i = src 
-  then 
-    if Aiger.sign i then Aiger.aiger_not dst else dst
-  else i*)
+let substitute src dst i =
+  if i mod 2 = 1 
+  then
+    if Aiger.neg i = src then Aiger.neg dst else i
+  else
+    if i = src then dst else i
+
 
 (* remove an input and replace it by the given gate *)
 let input2gate aiger input gate =
-  failwith "Strategy.input2gate: unimplemented"
-(*
-  let sub = substitute input gate in
-  let renumber x = if Aiger.lit2int x > Aiger.lit2int input + 1 then Aiger.int2lit (Aiger.lit2int x - 2) else x in
-  let inputs = List.filter (fun x -> x <> input) aiger.Aiger.inputs in
-  let inputs = List.map renumber inputs in
-  let sym = Aiger.lit2symbol aiger input in
-  let abstract = Aiger.LitMap.remove input aiger.Aiger.abstract in
-  let abstract = Aiger.LitMap.fold (fun k i accu -> Aiger.LitMap.add (renumber k) i accu) abstract Aiger.LitMap.empty in
-  let symbols = Aiger.SymbolMap.remove sym aiger.Aiger.symbols in
-  let symbols = Aiger.SymbolMap.map renumber symbols in
-  let latches = List.map (fun (l,r) -> (renumber l, renumber (sub r))) aiger.Aiger.latches in
-  let ands = List.map 
-	       (fun (lhr,rhs0,rhs1) ->  (renumber lhr,renumber (sub rhs0),renumber (sub rhs1))
-	       ) aiger.Aiger.ands
+  Printf.printf "input2gate %d %d\n" input gate;
+    let sub = substitute input gate in
+  let renumber x =
+    if x > input + 1 then (x - 2) else x
   in
-  let outputs = List.map renumber aiger.Aiger.outputs in
+  let new_inputs = Aiger.LitSet.make() in
+  let sym = Aiger.lit2string_exn aiger input in
+  let new_symbols = Hashtbl.create aiger.Aiger.maxvar in
+  let new_symbols_inv = Hashtbl.create aiger.Aiger.maxvar in
+  let new_latches = Hashtbl.create aiger.Aiger.num_latches in
+  let new_ands = Hashtbl.create aiger.Aiger.num_ands in
+  let new_outputs = Aiger.LitSet.make() in
+  Aiger.LitSet.iter
+    (fun l ->
+      if l <> input then Aiger.LitSet.add new_inputs (renumber l)
+    ) aiger.Aiger.inputs ;
+  Hashtbl.iter (fun k i -> Hashtbl.add new_symbols (renumber k) i) aiger.Aiger.symbols ;
+  Hashtbl.iter (fun i k -> Hashtbl.add new_symbols_inv i (renumber k)) aiger.Aiger.symbols_inv ;
+  Hashtbl.iter (fun l r -> Hashtbl.add new_latches (renumber l) (renumber (sub r))) aiger.Aiger.latches;
+  Hashtbl.iter (fun lhr (rhs0,rhs1) ->
+    Hashtbl.add new_ands (renumber lhr) (renumber (sub rhs0),renumber (sub rhs1))
+  ) aiger.Aiger.ands;
+  Aiger.LitSet.iter (fun l -> Aiger.LitSet.add new_outputs (renumber l)) aiger.Aiger.outputs;
   {aiger with 
     Aiger.num_inputs = aiger.Aiger.num_inputs - 1 ; 
-    Aiger.inputs = inputs ; 
-    Aiger.latches = latches ; 
-    Aiger.ands = ands;
-    Aiger.symbols = symbols;
-    Aiger.abstract = abstract;
-    Aiger.outputs = outputs;
+    Aiger.inputs = new_inputs ; 
+    Aiger.latches = new_latches ; 
+    Aiger.ands = new_ands;
+    Aiger.symbols = new_symbols;
+    Aiger.symbols_inv = new_symbols_inv;
+    Aiger.outputs = new_outputs;
     Aiger.maxvar = aiger.Aiger.maxvar - 1;
-  },renumber gate
-*)
+  }, renumber gate
+
 
 (* val input_output_from_bdd : Aiger.t -> Aiger.variable -> Cudd.bdd -> Aiger.t 
 Replace the input by the BDD, and also put it as an output
