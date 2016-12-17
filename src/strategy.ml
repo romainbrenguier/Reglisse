@@ -107,24 +107,26 @@ let input2gate aiger input gate =
 Replace the input by the BDD, and also put it as an output
 *)
 let input_output_from_bdd aiger input bdd =
-  print_endline "input_output_from_bdd";
+  Printf.printf "input_output_from_bdd %d\n" (BddVariable.to_int input);
   let map = AigerImpBdd.map_of_aiger aiger in
   let input_lit = AigerImpBdd.VariableMap.find input map in
   let sym = Aiger.lit2string_exn aiger input_lit in
   let gate = AigerImpBdd.add_bdd_to_aiger aiger AigerImpBdd.VariableMap.empty bdd in
+  Printf.printf "input_output_from_bdd %s <- %d %s %d\n" (BddVariable.to_string input) input_lit sym gate;
   let aiger,gate = input2gate aiger input_lit gate in
-  Aiger.set_output aiger sym gate
+  Aiger.set_output aiger sym gate;
+  aiger
 
 
 let to_aiger aiger strategy controllables uncontrollables = 
   Timer.log "converting strategy to bdds";
   let strategy_bdds = to_bdds strategy controllables uncontrollables in
   Timer.log "converting bdds to a circuit";
-  List.iter
-    (fun (contr,bdd) ->
-      input_output_from_bdd aiger contr bdd;
-    ) strategy_bdds;
-  aiger
+  List.fold_left
+    (fun aig (contr,bdd) ->
+      input_output_from_bdd aig contr bdd;
+    ) aiger strategy_bdds;
+
 (*Timer.log "cleaning the circuit";
   AigerBdd.reorder_aiger aiger*)
 

@@ -93,7 +93,7 @@ let general_synthesis game =
   let aiger_strat = Strategy.to_aiger game.aiger strat game.contr game.uncontr in
   if !ReglisseCommon.display_debug then 
     (print_endline "Strategy as aiger file:";
-     AigerImperative.write stdout game.aiger
+     AigerImperative.write stdout aiger_strat
     );
   aiger_strat
 
