@@ -20,7 +20,7 @@ If the specification are realizable, the program creates a verilog file describi
 
 ## Reglisse syntax
 
-We distinguish three types of modules: logical module, procedural module and compositional modules. 
+We distinguish three types of modules: _functional_ modules, _procedural_ modules and _compositional_ modules. 
 
 All types of module start with a statement of the form:
 
@@ -31,9 +31,28 @@ and end with
     endmodule
 
 
-Functional modules should follow the minispec syntax of ocaml-aiger.
+## Functional modules
 
-Procedural modules are sequences of conditions of the form:
+These modules follow the minispec syntax of ocaml-aiger.
+Here are examples of such modules:
+
+    module Disj(input a, input b, output c);
+        c <- a | b;
+    endmodule
+
+    module Conj(input a, input b, output c);
+       c <- a & b;
+    endmodule
+
+    module Register(input a, output r);
+       reg b1;
+       r <- b1;
+       b1 <- a;
+    endmodule
+
+## Procedural modules
+
+These are lists of conditions of the form:
 
     if "reg_exp" then "sequence";
     never "reg_exp";
@@ -41,7 +60,7 @@ Procedural modules are sequences of conditions of the form:
 
 We plan to add more instructions, the goal would be to be able to encode any cosafe or safe LTL formula.
 
-
+## Composition modules
 
 Composition module are lists of module calls, like for instance, this example from functional.rgl:
 
