@@ -1,0 +1,13 @@
+<*.ml>: use_ocaml-aiger, use_ocaml-cudd
+<*.mli>: use_ocaml-aiger, use_ocaml-cudd
+<*.byte>: use_ocaml-aiger, use_ocaml-cudd
+<*.native>: use_ocaml-aiger, use_ocaml-cudd
+<pa_speculog.*>: pp(camlp4o  pa_extend.cmo q_MLast.cmo), use_ocaml-aiger, use_ocaml-cudd, camlp4
+<expression.*>: use_ocaml-aiger
+<parser.*>: pp(camlp4o), use_ocaml-aiger
+<type.*>: pp(camlp4o), use_ocaml-cudd, use_ocaml-aiger
+<parametricModule.*> or <moduleParser.*> or <environment.*> or <regularExpression.*> or <standard.*>: use_ocaml-aiger
+<regularExpression.*> or <moduleParser.*> : pp(camlp4o)
+<regularExpression.*> : use_ocaml-cudd
+<decomposition.*> : use_ocaml-aiger
+<verilog.*> : use_ocaml-aiger

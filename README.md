@@ -2,13 +2,11 @@
 Generates hardware description from safety conditions given by regular languages.
 
 ## Installation
-You need ocaml-cudd, ocaml-aiger and Speculoos to compile this program.
+You need ocaml-cudd and Speculoos to compile this program.
 Installation scripts are provided within this package.
 Execute the following commands:
 
-    ./install_ocaml_aiger.sh
     ./install_ocaml_cudd.sh
-    ./install_speculoos.sh
     make
 
 This should produce an executable called `reglisse`.
@@ -47,7 +45,7 @@ We plan to add more instructions, the goal would be to be able to encode any cos
 
 Composition module are lists of module calls, like for instance, this example from functional.rgl:
 
-    module Main(input a, input b, output c, output d,output r);
+    module Main(input a, input b, output c, output d, output r);
       Disj(a,b,c);
       Conj(a,b,d);
       Register(a,r);
