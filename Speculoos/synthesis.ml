@@ -1,26 +1,26 @@
 type declaration =
-| Input of AigerBdd.symbol 
-| Output of AigerBdd.symbol 
-| Reg of AigerBdd.symbol
-| Wire of AigerBdd.symbol
+| Input of AigerBddImp.symbol 
+| Output of AigerBddImp.symbol 
+| Reg of AigerBddImp.symbol
+| Wire of AigerBddImp.symbol
 | DList of declaration list
 
-let decl_input s = Input (AigerBdd.of_aiger_symbol s)
-let decl_output s = Output (AigerBdd.of_aiger_symbol s)
-let decl_reg s = Reg (AigerBdd.of_aiger_symbol s)
-let decl_wire s = Wire (AigerBdd.of_aiger_symbol s)
+let decl_input s = Input (AigerBddImp.of_aiger_symbol s)
+let decl_output s = Output (AigerBddImp.of_aiger_symbol s)
+let decl_reg s = Reg (AigerBddImp.of_aiger_symbol s)
+let decl_wire s = Wire (AigerBddImp.of_aiger_symbol s)
   
 
 let rec add_declaration types declaration = match declaration with 
   | DList dl ->
     List.fold_left add_declaration types dl
-  | Input i -> AigerBdd.SymbolMap.add i (Input i) types
-  | Output o -> AigerBdd.SymbolMap.add o (Output o) types
-  | Reg r -> AigerBdd.SymbolMap.add r (Reg r) types
-  | Wire w -> AigerBdd.SymbolMap.add w (Wire w) types
+  | Input i -> AigerBddImp.SymbolMap.add i (Input i) types
+  | Output o -> AigerBddImp.SymbolMap.add o (Output o) types
+  | Reg r -> AigerBddImp.SymbolMap.add r (Reg r) types
+  | Wire w -> AigerBddImp.SymbolMap.add w (Wire w) types
 
 let of_declaration dl =
-  List.fold_left add_declaration AigerBdd.SymbolMap.empty dl
+  List.fold_left add_declaration AigerBddImp.SymbolMap.empty dl
 
 (*
 let find_declaration dl name =
@@ -39,7 +39,7 @@ let size_declaration decl = match decl with
 *)
 
 let inputs types = 
-  AigerBdd.SymbolMap.fold 
+  AigerBddImp.SymbolMap.fold 
     (fun _ declaration accu ->
       match declaration with 
       | Input i -> i :: accu
@@ -47,7 +47,7 @@ let inputs types =
     ) types []
 
 let outputs types = 
-  AigerBdd.SymbolMap.fold 
+  AigerBddImp.SymbolMap.fold 
     (fun _ declaration accu ->
       match declaration with 
       | Output i -> i :: accu
@@ -56,7 +56,7 @@ let outputs types =
 
 
 let registers types = 
-  AigerBdd.SymbolMap.fold 
+  AigerBddImp.SymbolMap.fold 
     (fun _ declaration accu ->
       match declaration with 
       | Reg i -> i :: accu
@@ -64,7 +64,7 @@ let registers types =
     ) types []
 
 let wires types = 
-  AigerBdd.SymbolMap.fold 
+  AigerBddImp.SymbolMap.fold 
     (fun _ declaration accu ->
       match declaration with 
       | Wire i -> i :: accu
@@ -115,22 +115,22 @@ struct
     List.fold_left (fun accu x -> Cudd.bddAnd accu x) (Cudd.bddTrue()) cl
 
   let rec of_expr expr = match expr with
-    | Boolean.EVar x -> AigerBdd.Variable.to_bdd (AigerBdd.Variable.find (x))
-  (*  | Boolean.ESimple x -> AigerBdd.Variable.to_bdd (AigerBdd.Variable.find (x,None))
-    | Boolean.ENext (x,i) -> AigerBdd.Variable.to_bdd (AigerBdd.Variable.next (AigerBdd.Variable.find (x,Some i)))
-    | Boolean.ESimpleNext x -> AigerBdd.Variable.to_bdd (AigerBdd.Variable.next (AigerBdd.Variable.find (x,None)))
+    | Boolean.EVar x -> AigerBddImp.Variable.to_bdd (AigerBddImp.Variable.find (x))
+  (*  | Boolean.ESimple x -> AigerBddImp.Variable.to_bdd (AigerBddImp.Variable.find (x,None))
+    | Boolean.ENext (x,i) -> AigerBddImp.Variable.to_bdd (AigerBddImp.Variable.next (AigerBddImp.Variable.find (x,Some i)))
+    | Boolean.ESimpleNext x -> AigerBddImp.Variable.to_bdd (AigerBddImp.Variable.next (AigerBddImp.Variable.find (x,None)))
   *)
     | Boolean.EForall (vl,e) -> 
       let variables = 
 	List.fold_left
 	  (fun accu e -> 
 	   match e with 
-	   | Boolean.EVar x -> AigerBdd.Variable.find x :: accu
-	   (*| Boolean.ESimple x -> AigerBdd.Variable.find (x,None) :: accu*)
+	   | Boolean.EVar x -> AigerBddImp.Variable.find x :: accu
+	   (*| Boolean.ESimple x -> AigerBddImp.Variable.find (x,None) :: accu*)
     | _ -> failwith "In Speculog.Constraint.of_expr: universal quantification on expressions that are not variables"
 	  ) [] vl 
       in
-      let cube = AigerBdd.Variable.make_cube variables in
+      let cube = AigerBddImp.Variable.make_cube variables in
       Cudd.bddUnivAbstract (of_expr e) cube
 
     | Boolean.EExists (vl,e) -> 
@@ -138,12 +138,12 @@ struct
       List.fold_left
 	(fun accu e -> 
 	 match e with 
-	 | Boolean.EVar x -> AigerBdd.Variable.find x :: accu
-	 (*| Boolean.ESimple x -> AigerBdd.Variable.find (x,None) :: accu*)
+	 | Boolean.EVar x -> AigerBddImp.Variable.find x :: accu
+	 (*| Boolean.ESimple x -> AigerBddImp.Variable.find (x,None) :: accu*)
 	 | _ -> failwith "In Speculog.Constraint.of_expr: existential quantification on expressions that are not variables"
 	) [] vl 
     in
-    let cube = AigerBdd.Variable.make_cube variables in
+    let cube = AigerBddImp.Variable.make_cube variables in
     Cudd.bddExistAbstract (of_expr e) cube
 
     | Boolean.ENot e -> Cudd.bddNot (of_expr e)
@@ -174,10 +174,10 @@ let synthesize declarations constr =
   let types = of_declaration declarations in
   let bdd = Constraint.expr_to_bdd constr in
   try
-    AigerBdd.bdd_to_aiger (inputs types) (registers types) (outputs types) (wires types) bdd
-  with (AigerBdd.Unsatisfiable (aig,bdd)) -> 
+    AigerBddImp.bdd_to_aiger (inputs types) (registers types) (outputs types) (wires types) bdd
+  with (AigerBddImp.Unsatisfiable (aig,bdd)) -> 
     let expr = Boolean.of_bdd bdd (List.rev_append (inputs types) (registers types)) in
-    (*AigerBdd.print_valuation aig (List.rev_append (Aiger.inputs aig) (Aiger.latches aig)) x;*)
+    (*AigerBddImp.print_valuation aig (List.rev_append (Aiger.inputs aig) (Aiger.latches aig)) x;*)
     raise (NonSynthesizable (constr,expr))
 
 let add_synthesized declarations constraints aiger =
@@ -219,7 +219,7 @@ let constraint_synthesis declarations = function
        ) (synthesize declarations hd) tl
   | _ -> failwith "In Speculog.constraint_synthesis: no constraint given"
        
-module SymbolSet = AigerBdd.SymbolSet
+module SymbolSet = AigerBddImp.SymbolSet
 
 let names_in_boolean_expr expr = 
   let rec aux accu = function 
@@ -307,7 +307,7 @@ let functional_synthesis (*declarations*) updates =
 	in lb,ob
       ) ([],[]) updates 
   in
-  AigerBdd.bdds_to_aiger (SymbolSet.elements inputs) latches_bdds outputs_bdds 
+  AigerBddImp.bdds_to_aiger (SymbolSet.elements inputs) latches_bdds outputs_bdds 
     
 let _declarations = []
 

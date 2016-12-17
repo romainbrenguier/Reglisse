@@ -10,7 +10,6 @@ pa_speculog.cmo:
 	camlp4o pa_extend.cmo q_MLast.cmo pa_speculog.ml -o pa_speculog.ast
 	ocamlbuild pa_speculog.cmo
 
-
 cycles: _build/examples/scheduling.byte
 
 simulation.byte: *.ml

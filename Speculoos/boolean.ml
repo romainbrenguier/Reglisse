@@ -132,6 +132,7 @@ let ( $=> ) = implies
   
 module BddMap = Map.Make(struct type t = Cudd.bdd let compare = Cudd.compare end)
 
+  (*
 let of_bdd bdd symbols = 
   let insert bdd expr map = 
     (*print_endline (to_string expr);*)
@@ -185,7 +186,7 @@ let of_bdd bdd symbols =
   let res = List.fold_left aux (BddMap.add bdd True BddMap.empty) symbols (*[bdd,True]*) in
   try BddMap.find (Cudd.bddTrue()) res
   with _ -> failwith "in [of_bdd]: missing variables"
-      
+  *)      
 
 
 let rec add_to_aiger aiger = function

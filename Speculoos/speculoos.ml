@@ -143,15 +143,15 @@ let functional_synthesis synthesis_function instructions =
   let list = Hashtbl.fold (fun x up accu -> (x,up) :: accu) tab [] in
   synthesis_function (List.map finalize list)
 
-let to_aiger instructions = 
+(*let to_aiger instructions = 
   let inits = extract_init instructions in
   let ups = 
     if inits <> [] 
     then initialize inits instructions 
     else instructions
-  in functional_synthesis Synthesis.functional_synthesis ups
+  in functional_synthesis Synthesis.functional_synthesis ups*)
 
-let to_aig_imp instructions = 
+let to_aig instructions = 
   let inits = extract_init instructions in
   let ups = 
     if inits <> [] 
@@ -162,9 +162,9 @@ let to_aig_imp instructions =
   aig
 
 let compile ?(filename="") a =
-  let aig = to_aiger a in
-  if filename = "" then Aiger.write aig stdout 
-  else (let outch = open_out filename in Aiger.write aig outch; close_out outch)
+  let aig = to_aig a in
+  if filename = "" then AigerImperative.write stdout aig 
+  else (let outch = open_out filename in AigerImperative.write outch aig; close_out outch)
 
 let to_symbols aiger t = 
   let rec aux = function

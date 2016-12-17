@@ -8,14 +8,11 @@ let () =
       function
       | After_rules ->
 	flag ["doc";"use_ocaml-aiger"] 
-	  (S[A "-I"; P "../../ocaml-aiger/_build"]);
+	  (S[A "-I"; P "../../aiger/_build"]);
 	flag ["ocaml";"compile";"use_ocaml-aiger"]
-	  (S[A "-I"; P "../../ocaml-aiger/_build"]);
+	  (S[A "-I"; P "../../aiger/_build"]);
 	flag ["ocaml";"link";"use_ocaml-aiger"]
-	  (S[P "../../ocaml-aiger/_build/aiger.cma"; P "../../ocaml-aiger/_build/aigerImperative.cma"]);
-
-
-
+	  (S[P "../../aiger/_build/aigerImperative.cma"]);
 	
 	flag ["ocaml";"compile";"use_ocaml-cudd"]
 	  (S[A "-I"; P "../../ocaml-cudd/_build"]);
@@ -56,16 +53,12 @@ let () =
 	    P "../../Speculoos/_build/circuit.cmo";
 	    P "../../Speculoos/_build/common.cmo";
 	    P "../../Speculoos/_build/type.cmo";
-	    P "../../Speculoos/_build/aigerBdd.cmo";
 	    P "../../Speculoos/_build/boolean.cmo";
 	    P "../../Speculoos/_build/integer.cmo";
 	    P "../../Speculoos/_build/expression.cmo";
-	    P "../../Speculoos/_build/synthesis.cmo";
+	    (*P "../../Speculoos/_build/synthesis.cmo";*)
 	    P "../../Speculoos/_build/synthesisImp.cmo";
 	    P "../../Speculoos/_build/speculoos.cmo";
-	     (* speculoosCompiler.cmo
-		P "../../Speculoos/_build/parser.cmo" 		       
-		"synthesisImp.cmo 	type.cmo";*)
 	    ]);
 
       | _ -> ()

@@ -454,10 +454,7 @@ let for_some list f =
   in 
   List.fold_left treat_one (bool false) list
 
-
-
-
-
+    (*
 let remove_input aiger inp = 
   let inputs = List.filter (fun l -> l <> inp) aiger.Aiger.inputs in
   let _,gates = List.fold_left 
@@ -472,7 +469,7 @@ let remove_input aiger inp =
     Aiger.ands = List.rev gates;
     Aiger.num_ands = List.length gates
   }
-
+    *)
 (*  
 let set_latch aiger lit output =
   (* let update = List.assoc lit aiger.Aiger.latches in*)

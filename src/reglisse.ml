@@ -289,7 +289,7 @@ let safety_to_game modul =
 let functional_to_aiger t = 
   match t.content with 
   | Functional (vars,updates) ->
-     Some (Speculoos.to_aig_imp (Speculoos.Seq (List.map (fun (a,b) -> Speculoos.Update(a,b)) updates)))
+     Some (Speculoos.to_aig (Speculoos.Seq (List.map (fun (a,b) -> Speculoos.Update(a,b)) updates)))
   | _ -> None 
 
 

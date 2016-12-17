@@ -12,7 +12,7 @@ let add_synthesized declarations constraints aiger =
   failwith "SynthesisImp.add_synthesized: unimplemented"
 *)
   
-module SymbolSet = AigerBdd.SymbolSet
+module SymbolSet = AigerImpBdd.SymbolSet
 
 let names_in_boolean_expr expr = 
   let rec aux accu = function 

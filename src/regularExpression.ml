@@ -382,7 +382,7 @@ let automaton_to_aiger ?(prefix="") auto =
   in
 
   let aig = 
-    Speculoos.to_aig_imp
+    Speculoos.to_aig
       (Speculoos.Seq
 	 (
 	   [
