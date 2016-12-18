@@ -405,7 +405,7 @@ let automaton_to_aiger ?(prefix="") auto =
   in
 
   (try
-    AigerImperative.hide aig (prefix^"_accept") 
+     AigerImperative.hide_exn aig (prefix^"_accept") 
    with
      AigerImperative.Correspondance_not_found x -> 
      Printf.eprintf "Warning: problem in RegularExpression, Aiger.hide raised not found on %s_accept<0>\n" prefix);

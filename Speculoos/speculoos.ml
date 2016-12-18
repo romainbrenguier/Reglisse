@@ -195,7 +195,7 @@ let rename aiger s typ name =
 let hiding aiger s typ = 
   let u = var s typ in
   let s = to_symbols aiger u in
-  List.iter (AigerImperative.hide aiger) s
+  List.iter (AigerImperative.hide_exn aiger) s
 
 (*
 let use_module aiger ~inputs ~outputs generate =

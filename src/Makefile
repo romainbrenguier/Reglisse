@@ -1,6 +1,4 @@
-
-
-all: main.byte simulation.byte
+all: main.byte
 
 clean:
 	ocamlbuild -clean
@@ -13,9 +11,6 @@ doc:
 
 main.byte: *.ml
 	ocamlbuild main.byte
-
-simulation.byte: *.ml
-	ocamlbuild simulation.byte
 
 test: main.byte
 	./main.byte examples/washing.rgl

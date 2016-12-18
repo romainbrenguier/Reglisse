@@ -33,7 +33,7 @@ struct
   let make () = {lit_max=0; lit_tab=Hashtbl.create 100}
   let fold f set start = 
     Hashtbl.fold (fun lit i accu ->
-      f i lit accu
+      f ~index:i ~lit accu
     ) set.lit_tab start
 
   let add set lit = 
@@ -52,10 +52,10 @@ struct
     ) set.lit_tab;
     set.lit_max <- set.lit_max - 1
 
-  let elements set = fold (fun _ lit accu -> lit :: accu) set []
+  let elements set = fold (fun ~index ~lit accu -> lit :: accu) set []
 
   let iter f set = 
-    fold (fun _ x () -> f x) set () 
+    fold (fun ~index ~lit () -> f lit) set () 
 
 end
   
@@ -130,7 +130,7 @@ let empty () =
    symbols_inv = Hashtbl.create 100;
   }
 
-let parse inch = 
+let parse_exn inch = 
   let line = input_line inch in
   let aiger = empty () in
   Scanf.sscanf line "aag %d %d %d %d %d" 
@@ -237,12 +237,11 @@ let parse inch =
   
   aiger
 
+let read_exn inch = parse_exn inch
 
-let read inch = parse inch
-
-let read_from_file file =  
+let read_from_file_exn file =  
   let inch = open_in file in
-  let aiger = read inch in
+  let aiger = read_exn inch in
   close_in inch;
   aiger
 
@@ -313,7 +312,7 @@ let lit2tag t lit =
 
 exception Not_output of tag
 
-let hide t name = 
+let hide_exn t name = 
   let l = string2lit_exn t name in
   try
     if not (LitSet.mem t.inputs l || Hashtbl.mem t.latches l)
@@ -329,37 +328,35 @@ let names aiger =
     string :: accu
   ) aiger.symbols []
 
-let inputs aiger = 
+let inputs_exn aiger = 
   LitSet.fold 
-    (fun index lit accu -> 
+    (fun ~index ~lit accu -> 
       let name = lit2string_exn aiger lit in
       name :: accu
     ) aiger.inputs []
 
-let latches aiger = 
+let latches_exn aiger = 
   Hashtbl.fold 
-    (fun lit _ accu -> 
+    (fun lit rhs accu -> 
       let name = lit2string_exn aiger lit in
       name :: accu
     ) aiger.latches []
 
-let outputs aiger = 
+let outputs_exn aiger = 
   LitSet.fold 
-    (fun lit index accu -> 
+    (fun ~index ~lit accu ->
+      Printf.printf "looking for output %d, %d\n" lit index;
       let name = lit2string_exn aiger lit in
       name :: accu
     ) aiger.outputs []
-    
-  
-
-    
+        
 let write outch aiger =
   let inputs = 
-    LitSet.fold (fun i lit accu -> (i,lit):: accu) aiger.inputs [] 
+    LitSet.fold (fun ~index ~lit accu -> (index,lit):: accu) aiger.inputs [] 
   |> List.sort (fun (a,_) (b,_) -> compare a b) 
   in
   let outputs = 
-    LitSet.fold (fun i lit accu -> (i,lit):: accu) aiger.outputs [] 
+    LitSet.fold (fun ~index ~lit accu -> (index,lit):: accu) aiger.outputs [] 
   |> List.sort (fun (a,_) (b,_) -> compare a b) 
   in
   let latches = 
@@ -375,15 +372,32 @@ let write outch aiger =
   in
 
 
-  Printf.fprintf outch "aag %d %d %d %d %d\n" aiger.maxvar aiger.num_inputs aiger.num_latches aiger.num_outputs aiger.num_ands;
+  Printf.fprintf outch "aag %d %d %d %d %d\n" aiger.maxvar aiger.num_inputs
+    aiger.num_latches aiger.num_outputs aiger.num_ands;
+  
   List.iter (fun (_,lit) -> Printf.fprintf outch "%d\n" lit) inputs ;
-  List.iter (fun (_,lit) -> Printf.fprintf outch "%d %d\n" lit (Hashtbl.find aiger.latches lit)) latches;
+  List.iter
+    (fun (_,lit) ->
+      Printf.fprintf outch "%d %d\n" lit (Hashtbl.find aiger.latches lit)
+    ) latches;
+  
   List.iter (fun (_,lit) -> Printf.fprintf outch "%d\n" lit) outputs;
   List.iter (fun (a,b,c) -> Printf.fprintf outch "%d %d %d\n" a b c) ands;
-  List.iter (fun (i,a) -> Printf.fprintf outch "i%d %s\n" i (lit2string_exn aiger a)) inputs;
-  List.iter (fun (i,lhs) -> Printf.fprintf outch "l%d %s\n" i (lit2string_exn aiger lhs)) latches;
+  List.iter
+    (fun (i,a) ->
+      Printf.fprintf outch "i%d %s\n" i (lit2string_exn aiger a)
+    ) inputs;
+  
+  List.iter
+    (fun (i,lhs) ->
+      Printf.fprintf outch "l%d %s\n" i (lit2string_exn aiger lhs)
+    ) latches;
+  
   (* Some outputs could have been removed *)
-  List.iter (fun (i,a) -> Printf.fprintf outch "o%d %s\n" i (lit2string_exn aiger a)) outputs;
+  List.iter
+    (fun (i,a) -> Printf.fprintf outch "o%d %s\n" i (lit2string_exn aiger a)
+    ) outputs;
+  
   if aiger.comments <> [] then Printf.fprintf outch "c\n";
   List.iter (fun a -> Printf.fprintf outch "%s\n" a) aiger.comments
 

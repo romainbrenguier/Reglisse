@@ -99,7 +99,7 @@ let test aiger =
   AigerImpBdd.init aiger;
   let unsafe =
     AigerImperative.LitSet.fold
-      (fun i lit ->
+      (fun ~index ~lit ->
 	Cudd.bddOr (bdd_of_lit lit)
       )	aiger.AigerImperative.outputs (Cudd.bddFalse())
   in
@@ -146,7 +146,7 @@ let main =
     then Printf.printf "usage : %s <file>\n" Sys.argv.(0)
     else
       (ReglisseCommon.display_debug := true;
-       let aiger = AigerImperative.read_from_file Sys.argv.(1) in
+       let aiger = AigerImperative.read_from_file_exn Sys.argv.(1) in
        print_endline "read from file:";
        AigerImperative.write stdout aiger;
        test aiger);

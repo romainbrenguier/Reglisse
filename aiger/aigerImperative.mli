@@ -31,7 +31,7 @@ module LitSet :
 sig
   type t
   val make : unit -> t
-  val fold : (int -> lit -> 'a -> 'a) -> t -> 'a -> 'a
+  val fold : (index:int -> lit:lit -> 'a -> 'a) -> t -> 'a -> 'a
   val add : t -> lit -> unit
   val elements : t -> lit list 
   val iter : (lit -> unit) -> t -> unit
@@ -67,8 +67,9 @@ val copy : t -> t
 (** And gates of the AIG in increasing left hand side *)
 val gates : t -> (lit*lit*lit) list
 
-val read : in_channel -> t
-val read_from_file : string -> t
+(** raise End_of_file if the file is not valid *)
+val read_exn : in_channel -> t
+val read_from_file_exn : string -> t
 val write : out_channel -> t -> unit
 val write_to_file : t -> string -> unit
 
@@ -104,15 +105,17 @@ val lit2tag : t -> lit -> tag option
 (** [lit2tag_exn] may raise [Not_found] exception *)
 val lit2tag_exn : t -> lit -> tag
 
-(** remove an output, may raise an exception [Not_found] if the name does not correspond to any literal, and [Not_output] if it is not an output *)
+(** remove an output, may raise an exception [Not_found] if
+    the name does not correspond to any literal, 
+    and [Not_output] if it is not an output *)
 exception Not_output of tag
-val hide : t -> string -> unit
+val hide_exn : t -> string -> unit
 
-(** List of names used as symbols. *)
+(** List of names used as symbols. May raise Correspondance_not_found. *)
 val names : t -> string list
-val inputs : t -> string list
-val outputs : t -> string list
-val latches : t -> string list
+val inputs_exn : t -> string list
+val outputs_exn : t -> string list
+val latches_exn : t -> string list
 
 (** Rename variables of the aiger file according to the given correspondance *)
 val rename : t -> (string -> string) -> unit

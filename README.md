@@ -31,7 +31,7 @@ and end with
     endmodule
 
 
-## Functional modules
+### Functional modules
 
 These modules follow the minispec syntax of ocaml-aiger.
 Here are examples of such modules:
@@ -50,7 +50,7 @@ Here are examples of such modules:
        b1 <- a;
     endmodule
 
-## Procedural modules
+### Procedural modules
 
 These are lists of conditions of the form:
 
@@ -60,7 +60,7 @@ These are lists of conditions of the form:
 
 We plan to add more instructions, the goal would be to be able to encode any cosafe or safe LTL formula.
 
-## Composition modules
+### Composition modules
 
 Composition module are lists of module calls, like for instance, this example from functional.rgl:
 

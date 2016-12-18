@@ -10,8 +10,8 @@ let set_input_file f = input_file := f
 
 let arguments = 
   let open Arg in
-  [ "-g", Set output_game, "Output the generated games in an aiger file";
-    "-p", Set output_product, "Output the global product in an aiger file";
+  [ "--output-games", Set output_game, "Output the generated games in an aiger file";
+    "--output-product", Set output_product, "Output the global product in an aiger file";
     "-l", Set Timer.display_log, "Display logs";
     "-t", Set display_total_time, "Display total time";
     "-w", Set Timer.display_warning, "Display warnings";
@@ -347,8 +347,8 @@ let main =
   in
   Timer.log "exporting to aiger";
   write_aiger !input_file aig;
-  (*Timer.log "exporting to verilog";
-  write_verilog !input_file "Main" aig;*)
+  Timer.log "exporting to verilog";
+  write_verilog !input_file "Main" aig;
   if !display_total_time then (Timer.display (); print_newline ())
 
 

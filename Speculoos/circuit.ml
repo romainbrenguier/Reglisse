@@ -34,13 +34,13 @@ let compute_updates aiger =
   Hashtbl.add gate_bdd Aiger.aiger_false (Cudd.bddFalse ());
   Hashtbl.add gate_bdd Aiger.aiger_true (Cudd.bddTrue ());
 
-  Aiger.LitSet.fold 
-    (fun _ inp () -> 
-      let var = BddVariable.find (Aiger.lit2string_exn aiger inp) in
+  Aiger.LitSet.iter
+    (fun lit -> 
+      let var = BddVariable.find (Aiger.lit2string_exn aiger lit) in
       let bdd = BddVariable.to_bdd var in
-      Hashtbl.add gate_bdd inp bdd;
-      Hashtbl.add gate_bdd (Aiger.neg inp) (Cudd.bddNot bdd)
-    ) aiger.Aiger.inputs ();
+      Hashtbl.add gate_bdd lit bdd;
+      Hashtbl.add gate_bdd (Aiger.neg lit) (Cudd.bddNot bdd)
+    ) aiger.Aiger.inputs;
   
   Hashtbl.iter 
     (fun l _ -> 
@@ -96,14 +96,14 @@ let variables_aiger aiger =
 
   let vs =
     Aiger.LitSet.fold
-      (fun i inp vs ->
-	VariableSet.add (BddVariable.find (Aiger.lit2string_exn aiger inp)) vs
+      (fun ~index ~lit vs ->
+	VariableSet.add (BddVariable.find (Aiger.lit2string_exn aiger lit)) vs
       ) aiger.Aiger.inputs vs
   in
   let vs =
     Aiger.LitSet.fold
-      (fun i out vs ->
-	VariableSet.add (BddVariable.find (Aiger.lit2string_exn aiger out)) vs
+      (fun ~index ~lit vs ->
+	VariableSet.add (BddVariable.find (Aiger.lit2string_exn aiger lit)) vs
       ) aiger.Aiger.outputs vs
   in
   let vs = 
@@ -164,6 +164,6 @@ let initial_state aiger =
 	       in (v,false)
 	     ) literals*)
 	 in List.rev_append (Array.to_list variables) accu*)
-       ) [] (List.rev_append (Aiger.latches aiger) (Aiger.outputs aiger))
+       ) [] (List.rev_append (Aiger.latches_exn aiger) (Aiger.outputs_exn aiger))
     )
     

@@ -7,7 +7,7 @@ let controllable_name name =
 
 let controllables aiger = 
   Aiger.LitSet.fold
-    (fun i lit (c,u) ->
+    (fun ~index ~lit (c,u) ->
       Printf.printf "looking for lit %d\n" lit;
       let name = Aiger.lit2string_exn aiger lit in
       if controllable_name name then (lit :: c, u) 
@@ -24,7 +24,7 @@ let of_aiger aiger =
   (aiger, c, u)
     
 let read_from_file file = 
-  let aiger = Aiger.read_from_file file in
+  let aiger = Aiger.read_from_file_exn file in
   of_aiger aiger
 
 type t = {

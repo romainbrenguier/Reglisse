@@ -10,35 +10,23 @@ let lit2string aiger lit =
   if lit = Aiger.aiger_true then "1"
   else if lit = Aiger.aiger_false then "0"
   else
-    failwith "Verilog.lit2string: unimplemented"
-(*
-    try 
-      (*
-      let string = 
-	match Aiger.lit2tag aiger (Aiger.strip lit) with
-	| Aiger.Constant true -> "1" 
-	| Aiger.Constant false -> "0"
-	| Aiger.And (l,_,_) -> "gate"^string_of_int (Aiger.lit2int l)
-	| _ -> 
-	  Aiger.lit2string_exn aiger (Aiger.strip lit))
-      in
-      if Aiger.sign lit then "(!"^string^")" else string
-      *)
+    match Aiger.lit2string aiger lit with
+    | Some s -> s
+    | None -> 
+       "(lit "^string_of_int lit^" not found)"
 
-    with Not_found -> "(lit "^string_of_int (Aiger.lit2int lit)^" not found)"
-*)
 
 
 let of_aiger name aiger outch =
+  Printf.printf "Writing verilog for aiger:\n";
+  Aiger.write stdout aiger;
   Printf.fprintf outch "module %s(\n  input clk,\n" name;
-  failwith "Verilog.of_aiger: not implemented";
-(*  
   List.iter
     (fun i -> 
       Printf.fprintf outch "  input %s,\n" i
-    ) (Aiger.inputs aiger);
+    ) (Aiger.inputs_exn aiger);
 
-  (match Aiger.outputs aiger with
+  (match Aiger.outputs_exn aiger with
   | hd :: tl ->
     List.iter
       (fun i -> 
@@ -50,45 +38,38 @@ let of_aiger name aiger outch =
   
   Printf.fprintf outch ");\n";
 
-
   List.iter
     (fun i -> 
-      let s = Aiger.size_symbol aiger i in
-      if s > 1 
-      then Printf.fprintf outch "  reg %s[%d:0];\n" i (s-1)
-      else Printf.fprintf outch "  reg %s;\n" i
-    ) (Aiger.latches aiger);
+      Printf.fprintf outch "  reg %s;\n" i
+    ) (Aiger.latches_exn aiger);
 
-  List.iter
-    (fun (i,_,_) -> 
-      Printf.fprintf outch "  wire gate%d;\n" (Aiger.lit2int i)
+  Hashtbl.iter
+    (fun i (_,_) -> 
+      Printf.fprintf outch "  wire gate%d;\n" i
     ) aiger.Aiger.ands;
 
-  List.iter
-    (fun (i,a,b) -> 
+  Hashtbl.iter
+    (fun i (a,b) -> 
       let ga = lit2string aiger a in
       let gb = lit2string aiger b in
-      Printf.fprintf outch "  assign gate%d = %s & %s;\n" (Aiger.lit2int i) ga gb
+      Printf.fprintf outch "  assign gate%d = %s & %s;\n" i ga gb
     ) aiger.Aiger.ands;
 
-  List.iter
-    (fun o -> 
-      let l = Aiger.symbol2lit aiger (o,None) in
-      let gm = lit2string aiger l in
-      Printf.fprintf outch "  assign %s = %s;\n" o gm
-    ) (Aiger.outputs aiger);
-
+  Aiger.LitSet.iter
+    (fun l ->
+      let o = lit2string aiger l in
+      Printf.fprintf outch "  assign %s = gate%d;\n" o l
+    ) aiger.Aiger.outputs;
 
   Printf.fprintf outch "\n  always @(posedge clk) begin\n";
 
-  List.iter
-    (fun (l,m) -> 
-      let symbol = Aiger.lit2symbol aiger l in
-      let gm = lit2string aiger m in
-      Printf.fprintf outch "    %s <= %s;\n" (symbol_to_string symbol) gm
+  Hashtbl.iter
+    (fun l m -> 
+      let lhs = lit2string aiger l in
+      let rhs = lit2string aiger m in
+      Printf.fprintf outch "    %s <= %s;\n" lhs rhs
     ) aiger.Aiger.latches;
 
-*)
   Printf.fprintf outch "  end\n";
   Printf.fprintf outch "endmodule\n"
 

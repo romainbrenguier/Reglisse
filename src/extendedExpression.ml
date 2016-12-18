@@ -34,8 +34,8 @@ let replace_lit_by_output aiger1 lit1 aiger2 lit2 =
   add_mapping Aiger.aiger_false Aiger.aiger_false;
   add_mapping Aiger.aiger_true Aiger.aiger_true;
 
-  Aiger.LitSet.fold
-      (fun _ lit2 () -> 
+  Aiger.LitSet.iter
+      (fun lit2 -> 
 	let sym = Aiger.lit2string_exn aiger2 lit2 in
 	try 
 	  let lit1 = Aiger.string2lit_exn aiger1 sym in
@@ -43,7 +43,7 @@ let replace_lit_by_output aiger1 lit1 aiger2 lit2 =
 	with Not_found -> 
 	  let lit = Aiger.add_input aig sym in
 	  add_mapping lit2 lit
-      ) aiger2.Aiger.inputs ();
+      ) aiger2.Aiger.inputs;
   
   Hashtbl.iter
       (fun lhs _ -> 
@@ -63,11 +63,11 @@ let replace_lit_by_output aiger1 lit1 aiger2 lit2 =
       Aiger.set_latch_update aig (find_mapping lhs) (find_mapping rhs) 
     ) aiger2.Aiger.latches;
 
-  Aiger.LitSet.fold 
-    (fun _ o () -> 
+  Aiger.LitSet.iter 
+    (fun o -> 
       let sym = Aiger.lit2string_exn aiger2 o in
       Aiger.set_output aig sym (find_mapping o)
-    ) aiger2.Aiger.outputs ();
+    ) aiger2.Aiger.outputs;
   aig
 
 (*
@@ -140,8 +140,8 @@ let rec to_aiger ?(prefix="") = function
      let g2 = Aiger.string2lit_exn aig (id2^"_accept") in
      let lit = Aiger.conj aig g1 g2 in
      Aiger.set_output aig (prefix^"_accept") lit;
-     Aiger.hide aig (id1^"_accept");
-     Aiger.hide aig (id2^"_accept");
+     Aiger.hide_exn aig (id1^"_accept");
+     Aiger.hide_exn aig (id2^"_accept");
      aig
 
   | Neg a ->
@@ -149,7 +149,7 @@ let rec to_aiger ?(prefix="") = function
      let aig1 = to_aiger ~prefix:id1 a in
      let g1 = Aiger.string2lit_exn aig1 (id1^"_accept") in
      Aiger.set_output aig1 (prefix^"_accept") (Aiger.neg g1);
-     Aiger.hide aig1 (id1^"_accept");
+     Aiger.hide_exn aig1 (id1^"_accept");
      aig1
 				  
   | Alt (hd::tl) ->
@@ -166,8 +166,8 @@ let rec to_aiger ?(prefix="") = function
 	  let lit = Aiger.conj aig (Aiger.neg g1) (Aiger.neg g2) in
 	  let id3 = prefix^new_id () in
 	  Aiger.set_output aig (id3^"_accept") (Aiger.neg lit);
-	  Aiger.hide aig (id1^"_accept");
-	  Aiger.hide aig (id2^"_accept");
+	  Aiger.hide_exn aig (id1^"_accept");
+	  Aiger.hide_exn aig (id2^"_accept");
 	  aig, id3
 	 ) (aig,id) tl
      in 
@@ -186,7 +186,7 @@ let rec to_aiger ?(prefix="") = function
      let lit1 = Aiger.string2lit_exn aig1 (id1^"_accept") in 
      let lit2 = Aiger.string2lit_exn aig2 (id2^"_init") in
      let aig = replace_lit_by_output aig1 lit1 aig2 lit2 in
-     Aiger.hide aig (id1^"_accept");
+     Aiger.hide_exn aig (id1^"_accept");
      Aiger.rename aig (fun x -> if x = (id2^"_accept") then (prefix^"_accept") else x);
      aig
 
