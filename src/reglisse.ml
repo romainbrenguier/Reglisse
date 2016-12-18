@@ -282,7 +282,7 @@ let safety_to_game modul =
   let prefix = "never_"^modul.module_name in
   match safety_to_aiger ~prefix modul with
   | Some aig ->
-     (Timer.log "Game generated from safety condition";
+     (Message.log "Game generated from safety condition";
       Some (Game.of_aiger ~aig ~inputs:modul.inputs ~outputs:modul.outputs ~errors:[prefix^"_accept"]))
   | None -> None
 
@@ -390,6 +390,6 @@ let calls_to_game env modules t =
     let aig = List.fold_left AigerImperative.compose (List.hd game_list) (List.tl game_list) in
     let game = Game.of_aiger ~aig ~inputs:t.inputs ~outputs:t.outputs ~errors:error_list in
     Some (game,renaming_list)
-  | _ -> Timer.warning "no module calls"; None
+  | _ -> Message.warning "no module calls"; None
 
   

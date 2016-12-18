@@ -123,3 +123,10 @@ val rename : t -> (string -> string) -> unit
 (** Merge 2 aiger files where symbols with the same name are merged. *)
 val compose : t -> t -> t
 
+exception Circular_circuit of lit
+exception Lit_not_found of lit
+(** Reorder the gates so that the rhs only contains smaller indexes. 
+    May raise Circular_ciruit if they are circular dependencies in the circuit. 
+    And Lit_not_found in case a literal cannot be found.
+*)
+val order_gates_exn : t -> t

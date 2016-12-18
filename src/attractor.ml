@@ -56,7 +56,7 @@ let trap_with_restriction aiger controllables uncontrollables ?(weak=false) unsa
   let uncontrollable_cube = BddVariable.make_cube uncontrollables in
 
   let aux u = 
-    Timer.debug "in Attractor.trap_with_restriction: uncontrollable_predecessor step";
+    Message.debug "in Attractor.trap_with_restriction: uncontrollable_predecessor step";
     uncontrollable_predecessors_with_restriction u aiger controllable_cube uncontrollable_cube weak restriction
   in 
   Region.greatest_fixpoint aux unsafe
@@ -67,7 +67,7 @@ let trap ?(weak=false) ?(strategy = (Strategy.conj [])) game =
   let uncontrollable_cube = BddVariable.make_cube game.uncontr in
   Cudd.dumpDot "err.dot" game.err;
   let aux u = 
-    Timer.debug "in Attractor.trap_with_restriction: uncontrollable_predecessor step";
+    Message.debug "in Attractor.trap_with_restriction: uncontrollable_predecessor step";
     uncontrollable_predecessors u game.circuit controllable_cube uncontrollable_cube
   in 
 (*Region.greatest_fixpoint aux (Region.of_bdds game.err game.err)*)
@@ -103,13 +103,13 @@ let test aiger =
 	Cudd.bddOr (bdd_of_lit lit)
       )	aiger.AigerImperative.outputs (Cudd.bddFalse())
   in
-  Timer.debug "computing unsafe in unsafe.dot";
+  Message.debug "computing unsafe in unsafe.dot";
   Cudd.dumpDot "unsafe.dot" unsafe;
   let circuit = Circuit.of_aiger aiger in
   ReglisseCommon.display_debug := true;
-  Timer.debug "circuit computed";
+  Message.debug "circuit computed";
   let game = { aiger; circuit; contr=contrv; uncontr=uncontrv; err =unsafe} in
-  Timer.debug "trap computed";
+  Message.debug "trap computed";
   let trap_set = trap ~weak:false game in
   let trap_set_weak = trap ~weak:true game in
   let initial_losing = (*Cudd.bddRestrict (Region.latch_configuration trap_set) initial in*)

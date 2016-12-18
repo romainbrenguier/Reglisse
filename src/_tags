@@ -5,7 +5,7 @@
 <extendedExpression.*>: use_ocaml-aiger
 <verilog.*>: use_ocaml-aiger
 <reglisse.*> : pp(camlp4o), use_ocaml-aiger, use_ocaml-cudd, use_speculoos
-<timer.*> or <aigerBdd.*> or <simulation.*>: use_unix
+<message.*> or <aigerBdd.*> or <simulation.*>: use_unix
 <main.*> : use_ocaml-aiger, use_ocaml-cudd, use_speculoos, use_unix
 <*.byte> : use_ocaml-aiger, use_ocaml-cudd, use_speculoos, use_unix
 <simulation.*>: use_ocaml-aiger, use_ocaml-cudd, use_speculoos

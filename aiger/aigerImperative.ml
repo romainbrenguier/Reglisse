@@ -17,7 +17,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *)
 
-
 type lit = int
 let aiger_false = 0
 let aiger_true = 1
@@ -25,6 +24,7 @@ let neg lit = if lit mod 2 = 0 then lit + 1 else lit - 1
 let inverted lit = if lit mod 2 = 0 then false else true
 let strip lit = if lit mod 2 = 0 then lit else lit - 1
 
+let debug s = Printf.eprintf "[aigerImperative] %s\n" s
 
 module LitSet = 
 struct
@@ -514,6 +514,82 @@ let compose aig1 aig2 =
   print_endline "composition finished";
   aig
 
+
+    
+exception Circular_circuit of lit
+exception Lit_not_found of lit
+let order_gates_exn aig =
+  let new_aig = empty () in
+
+  debug "(* mapping from the literals of aig to the newly generated one *)";
+  let map = Hashtbl.create aig.num_ands in
+  Hashtbl.add map aiger_false aiger_false;
+  let find x =
+    try
+      if inverted x then neg (Hashtbl.find map (strip x)) else Hashtbl.find map x
+    with Not_found ->
+      Printf.eprintf "[aigerImperative] lit not found: %d\n" x;
+      raise Not_found	
+  in
+  
+  debug "(* add entry in the table for latches *)";
+  Hashtbl.iter
+    (fun l n ->
+      let a = lit2string_exn aig l in
+      let lit = add_latch new_aig a in
+      Hashtbl.add map l lit
+    ) aig.latches;
+
+  LitSet.iter
+    (fun i -> 
+      let lit = add_input new_aig (lit2string_exn aig i) in
+      Hashtbl.add map i lit
+    ) aig.inputs;
+
+  let rec recursive_add visited g =
+    if List.mem g visited then raise (Circular_circuit g);
+    try find g
+    with Not_found ->
+      if inverted g
+      then
+	let l,r =
+	  try Hashtbl.find aig.ands (strip g)
+	  with Not_found -> raise (Lit_not_found g)
+	in
+	let lit = conj new_aig
+	  (recursive_add (g::visited) l)
+	  (recursive_add (g::visited) r)
+	in
+	Hashtbl.add map g (neg lit);
+	neg lit
+      else 
+	let l,r =
+	  try Hashtbl.find aig.ands g
+	  with Not_found -> raise (Lit_not_found g)
+	in
+	let lit =
+	  conj new_aig (recursive_add (g::visited) l)
+	    (recursive_add (g::visited) r)
+	in
+	Hashtbl.add map g lit;
+	lit
+  in
+  
+  debug "(* add gates *)";
+  Hashtbl.iter (fun g _ -> ignore (recursive_add [] g)) aig.ands;
+
+  debug "(* add latches *)";
+  Hashtbl.iter 
+    (fun l n -> set_latch_update new_aig (find l) (find n)
+    ) aig.latches;
+
+  debug "(* add outputs *)";
+  LitSet.iter
+    (fun o -> set_output new_aig (lit2string_exn aig o) (find o) 
+    ) aig.outputs;
+
+  new_aig
+
     
 let rename aig renaming =
   Hashtbl.iter
@@ -525,10 +601,6 @@ let rename aig renaming =
       Hashtbl.replace aig.symbols lit (renaming name);
       Hashtbl.add aig.symbols_inv (renaming name) lit
     ) aig.symbols
-
-
-  
-
 
 let rename_list aiger renaming =
   names aiger 

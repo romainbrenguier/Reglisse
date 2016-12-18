@@ -38,13 +38,15 @@ let to_bdds strategy controllables uncontrollables =
     incr cnt;
     let bdd_inp = BddVariable.to_bdd contr in 
     let val_inp = 
-      Cudd.bddNot (Cudd.bddExistAbstract (Cudd.bddAnd (Cudd.bddNot bdd_inp) bdd) (BddVariable.make_cube controllables)) in
+      Cudd.bddNot (Cudd.bddExistAbstract (Cudd.bddAnd (Cudd.bddNot bdd_inp) bdd)
+		     (BddVariable.make_cube controllables)) in
 
     try
       let bdd =  Cudd.bddExistAbstract 
 		   (Cudd.bddAnd bdd (Cudd.bddOr 
 				       (Cudd.bddAnd val_inp bdd_inp)
-				       (Cudd.bddAnd (Cudd.bddNot val_inp) (Cudd.bddNot bdd_inp))))
+				       (Cudd.bddAnd (Cudd.bddNot val_inp)
+					  (Cudd.bddNot bdd_inp))))
 		   (BddVariable.make_cube [contr])
 		   
       in 
@@ -104,7 +106,7 @@ let input2gate aiger input gate =
 
 
 (* val input_output_from_bdd : Aiger.t -> Aiger.variable -> Cudd.bdd -> Aiger.t 
-Replace the input by the BDD, and also put it as an output
+   Replace the input by the BDD, and also put it as an output
 *)
 let input_output_from_bdd aiger input bdd =
   Printf.printf "input_output_from_bdd %d\n" (BddVariable.to_int input);
@@ -113,20 +115,28 @@ let input_output_from_bdd aiger input bdd =
   let sym = Aiger.lit2string_exn aiger input_lit in
   let gate = AigerImpBdd.add_bdd_to_aiger aiger AigerImpBdd.VariableMap.empty bdd in
   Printf.printf "input_output_from_bdd %s <- %d %s %d\n" (BddVariable.to_string input) input_lit sym gate;
+  Aiger.write stdout aiger;
   let aiger,gate = input2gate aiger input_lit gate in
   Aiger.set_output aiger sym gate;
-  aiger
+  try
+    Aiger.write stdout aiger;
+    let a = Aiger.order_gates_exn aiger in
+    Aiger.write stdout a; a
+  with (Aiger.Circular_circuit i) ->
+    Printf.printf "CircularCircuit(%d)\n" i;
+    raise (Aiger.Circular_circuit i);
+    aiger
 
 
 let to_aiger aiger strategy controllables uncontrollables = 
-  Timer.log "converting strategy to bdds";
+  Message.log "converting strategy to bdds";
   let strategy_bdds = to_bdds strategy controllables uncontrollables in
-  Timer.log "converting bdds to a circuit";
+  Message.log "converting bdds to a circuit";
   List.fold_left
     (fun aig (contr,bdd) ->
       input_output_from_bdd aig contr bdd;
     ) aiger strategy_bdds;
 
-(*Timer.log "cleaning the circuit";
+(*Message.log "cleaning the circuit";
   AigerBdd.reorder_aiger aiger*)
 

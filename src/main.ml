@@ -12,11 +12,10 @@ let arguments =
   let open Arg in
   [ "--output-games", Set output_game, "Output the generated games in an aiger file";
     "--output-product", Set output_product, "Output the global product in an aiger file";
-    "-l", Set Timer.display_log, "Display logs";
+    "-l", Set Message.display_log, "Display logs";
     "-t", Set display_total_time, "Display total time";
-    "-w", Set Timer.display_warning, "Display warnings";
+    "-w", Set Message.display_warning, "Display warnings";
     "-d", Set ReglisseCommon.display_debug, "Display debug informations";
-(*    "-b", Int (fun x -> Reglisse.not_always_bound := x), "Set the bound to use to interpret not always instructions";*)
     "-m", Int (function  
 	       | 0 -> synthesis_method := Classical
 	       | 1 -> synthesis_method := Cooperative
@@ -24,20 +23,20 @@ let arguments =
 	       | 3 -> synthesis_method := Admissible
 	       | _ -> failwith "in command line arguments: no synthesis method corresponding to this number"
 	     )
-    , "Set the synthesis method: 0 Classical | 1 Cooperative | 2 Adversarial | 3 Admissible"
+      , "Set the synthesis method: 0 Classical | 1 Cooperative | 2 Adversarial | 3 Admissible"
   ]
 
     
 let write_aiger name aig =
   let output_file = name^".aag" in
-  Timer.log ("writing aiger in "^output_file);
+  Message.log ("writing aiger in "^output_file);
   let outch = open_out output_file in
   AigerImperative.write outch aig;
   close_out outch
 
 let write_verilog file module_name aig =
   let output_file = file^".v" in
-  Timer.log ("writing verilog in "^output_file);
+  Message.log ("writing verilog in "^output_file);
   let outch = open_out output_file in
   Verilog.of_aiger module_name aig outch;
   close_out outch
@@ -76,7 +75,7 @@ exception NoMainModule
 (* compute an aiger representation of a winning strategy in the game *)
 let general_synthesis game =
   let open Game in
-  Timer.log "General synthesis";
+  Message.log "General synthesis";
   if !ReglisseCommon.display_debug then 
     (print_endline "Controllables:\n";
      List.iter (fun x -> print_endline (BddVariable.to_string x)) game.contr;
@@ -87,8 +86,8 @@ let general_synthesis game =
     );
   let winning = Attractor.safe game in
   if Region.includes_initial winning 
-  then Timer.log "realizable"
-  else (Timer.log "unrealizable"; raise Unrealizable);
+  then Message.log "realizable"
+  else (Message.log "unrealizable"; raise Unrealizable);
   let strat = Strategy.of_region game.circuit winning in
   let aiger_strat = Strategy.to_aiger game.aiger strat game.contr game.uncontr in
   if !ReglisseCommon.display_debug then 
@@ -99,26 +98,26 @@ let general_synthesis game =
 
   
 let classical_synthesis modules =
-  Timer.log "Classical synthesis";
+  Message.log "Classical synthesis";
   let open Reglisse in
   let nb_modules = List.length modules in
   let env = Reglisse.Env.create nb_modules in
   let module_tab = Hashtbl.create nb_modules in
   let rec aux m =
-    Timer.log ("Module "^m.module_name);
+    Message.log ("Module "^m.module_name);
     Reglisse.Env.new_module env m.module_name m.inputs m.outputs;
     if Reglisse.is_atomic m 
     then
-      (Timer.log "Atomic module";
+      (Message.log "Atomic module";
        (* Reglisse.Env.add_game env m.module_name game;*)
        Hashtbl.add module_tab m.module_name m)
     else
       (
-	Timer.log "Composition module";
+	Message.log "Composition module";
 	match Reglisse.calls_to_game env module_tab m with 
 	| None -> failwith "in Main.classical_synthesis: Reglisse.calls_to_game failed"
 	| Some (game,_) ->
-	  Timer.log "Product computed";
+	  Message.log "Product computed";
 	  if !output_product then write_aiger "product" game.Game.aiger;
 	  let aiger_strat = general_synthesis game in
 	  Env.add_aiger env m.module_name aiger_strat
@@ -132,7 +131,7 @@ let classical_synthesis modules =
   in match modules with 
   | [m] ->   
      (
-       Timer.log "Single module. Generating safety game";
+       Message.log "Single module. Generating safety game";
        match Reglisse.safety_to_game m with
        | Some game -> general_synthesis game
        | None -> failwith "in Main.classical_synthesis: Reglisse.safety_to_game failed"
@@ -141,12 +140,12 @@ let classical_synthesis modules =
     List.iter aux modules;
     match Reglisse.Env.find_aiger env "Main"
     with Some x -> x | None -> 
-      Timer.warning "No Main module. If there are more than one module, one of them must be named Main.";
+      Message.warning "No Main module. If there are more than one module, one of them must be named Main.";
       raise NoMainModule
 
 
 let cooperative_synthesis modules =
-  Timer.log "Cooperative synthesis";
+  Message.log "Cooperative synthesis";
   let open Reglisse in
   let nb_modules = List.length modules in
   let env = Reglisse.Env.create nb_modules in
@@ -154,15 +153,15 @@ let cooperative_synthesis modules =
   (* records cooperative strategies for each module *)
   let strats = Hashtbl.create nb_modules in
   let aux m = 
-    Timer.log ("Module "^m.module_name);
+    Message.log ("Module "^m.module_name);
     Reglisse.Env.new_module env m.module_name m.inputs m.outputs;
     match Reglisse.safety_to_game m with 
     | Some game -> 
-       Timer.log "Atomic module";
+       Message.log "Atomic module";
        let coop = Region.negation (Admissibility.losing game) in
        if Region.includes_initial coop
-       then Timer.log "coop realizable"
-       else (Timer.log "unrealizable"; raise Unrealizable);
+       then Message.log "coop realizable"
+       else (Message.log "unrealizable"; raise Unrealizable);
        Reglisse.Env.add_game env m.module_name game;
        let new_strat = Strategy.of_region game.Game.circuit 
 	 (* Why do we need to take this ? *)
@@ -172,19 +171,19 @@ let cooperative_synthesis modules =
        Hashtbl.add strats m.module_name new_strat
 
     | None -> 
-       Timer.log "Composition module";
+       Message.log "Composition module";
        match Reglisse.calls_to_game env module_tab m with 
        | None -> failwith "in Main.classical_synthesis: Reglisse.calls_to_game failed"
        | Some (game,call_renaming_list) ->
 	  let open Game in
-	  Timer.log "Product computed";
+	  Message.log "Product computed";
 	  if !output_product then write_aiger "product" game.Game.aiger;
-	  Timer.log "Computing winning region with some restriction";
+	  Message.log "Computing winning region with some restriction";
 	  let strategies = call_renaming_list |> 
 	      List.map (fun {call;renaming} -> 
 	      let strat = 
 		try Hashtbl.find strats call 
-		with Not_found -> Timer.warning ("No strategy found for module "^call); 
+		with Not_found -> Message.warning ("No strategy found for module "^call); 
 		  Strategy.all ()
 	      in Strategy.rename strat renaming 
 	      )
@@ -192,8 +191,8 @@ let cooperative_synthesis modules =
 	  let strategy = Strategy.conj strategies in
 	  let winning = Region.negation (Attractor.trap ~strategy game) in
 	  if Region.includes_initial winning 
-	  then Timer.log "realizable"
-	  else (Timer.log "unrealizable"; raise Unrealizable);
+	  then Message.log "realizable"
+	  else (Message.log "unrealizable"; raise Unrealizable);
 	  let strat = Strategy.of_region game.circuit winning in
 	  let aiger_strat = Strategy.to_aiger game.aiger strat game.contr game.uncontr in
 	  Env.add_aiger env m.module_name aiger_strat
@@ -213,35 +212,35 @@ let cooperative_synthesis modules =
 
 
 let adversarial_synthesis modules =
-  Timer.log "Adversarial synthesis";
+  Message.log "Adversarial synthesis";
   let open Reglisse in
   let env = Reglisse.Env.create (List.length modules) in
   let rec aux m =
-    Timer.log ("Module "^m.module_name);
+    Message.log ("Module "^m.module_name);
     Reglisse.Env.new_module env m.module_name m.inputs m.outputs;
     match m.content with 
     | Safety _ -> 
       ( match Reglisse.safety_to_game m with 
       | Some game -> 
 	let open Game in
-	Timer.log "Atomic module";
+	Message.log "Atomic module";
 	let winning = Attractor.safe game in
 	if Region.includes_initial winning 
-	then Timer.log "realizable"
-	else (Timer.log "unrealizable"; raise Unrealizable);
+	then Message.log "realizable"
+	else (Message.log "unrealizable"; raise Unrealizable);
 	let strat = Strategy.of_region game.circuit winning in
 	let aiger_strat = Strategy.to_aiger game.aiger strat game.contr game.uncontr in
 	Env.add_aiger env m.module_name aiger_strat
       | None -> failwith "in Main.adversarial_synthesis: Reglisse.safety_to_game failed"
       )
     | Calls _ -> 
-      ( Timer.log "Composition module";
+      ( Message.log "Composition module";
 	match Reglisse.calls_to_aiger ~env m with 
 	| Some aiger -> Env.add_aiger env m.module_name aiger
 	| None -> failwith "in Main.adversarial_synthesis: Reglisse.calls_to_aiger failed")
     | Functional _ ->
-      ( Timer.log "Functional module";
-	Timer.warning "in the composition of functional module, the same variable used in different modules may be considered as one variable";
+      ( Message.log "Functional module";
+	Message.warning "in the composition of functional module, the same variable used in different modules may be considered as one variable";
 	match Reglisse.functional_to_aiger m with 
 	| Some aiger -> Env.add_aiger env m.module_name aiger
 	| None -> failwith "in Main.adversarial_synthesis: Reglisse.functional_to_aiger failed")    
@@ -264,7 +263,7 @@ let adversarial_synthesis modules =
 
 
 let admissible_synthesis modules =
-  Timer.log "Assume admissible synthesis";
+  Message.log "Assume admissible synthesis";
   let open Reglisse in
   let nb_modules = List.length modules in
   let env = Reglisse.Env.create nb_modules in
@@ -272,16 +271,16 @@ let admissible_synthesis modules =
   (* records admissible strategies for each module *)
   let strats = Hashtbl.create nb_modules in
   let aux m = 
-    Timer.log ("Module "^m.module_name);
+    Message.log ("Module "^m.module_name);
     Reglisse.Env.new_module env m.module_name m.inputs m.outputs;
     match Reglisse.safety_to_game m with 
     | Some game -> 
-       Timer.log "Atomic module";
+       Message.log "Atomic module";
        let value,adm = Admissibility.admissible_strategies game in
        (match value with
-       | 0 -> Timer.log "Cooperatively realizable"
-       | 1 -> Timer.log "Adversarialy realizable"
-       | _ -> Timer.log "unrealizable"; raise Unrealizable);
+       | 0 -> Message.log "Cooperatively realizable"
+       | 1 -> Message.log "Adversarialy realizable"
+       | _ -> Message.log "unrealizable"; raise Unrealizable);
        Reglisse.Env.add_game env m.module_name game;
        (*let new_strat = Strategy.of_region game.Game.circuit 
 	 (* Why do we need to take this ? *)
@@ -291,19 +290,19 @@ let admissible_synthesis modules =
        Hashtbl.add strats m.module_name adm
 
     | None -> 
-       Timer.log "Composition module";
+       Message.log "Composition module";
        match Reglisse.calls_to_game env module_tab m with 
        | None -> failwith "in Main.classical_synthesis: Reglisse.calls_to_game failed"
        | Some (game,call_renaming_list) ->
 	  let open Game in
-	  Timer.log "Product computed";
+	  Message.log "Product computed";
 	  if !output_product then write_aiger "product" game.Game.aiger;
-	  Timer.log "Computing winning region with some restriction";
+	  Message.log "Computing winning region with some restriction";
 	  let strategies = call_renaming_list |> 
 	      List.map (fun {call;renaming} -> 
 	      let strat = 
 		try Hashtbl.find strats call 
-		with Not_found -> Timer.warning ("No strategy found for module "^call); 
+		with Not_found -> Message.warning ("No strategy found for module "^call); 
 		  Strategy.all ()
 	      in Strategy.rename strat renaming 
 	      )
@@ -311,8 +310,8 @@ let admissible_synthesis modules =
 	  let strategy = Strategy.conj strategies in
 	  let winning = Region.negation (Attractor.trap ~strategy game) in
 	  if Region.includes_initial winning 
-	  then Timer.log "realizable"
-	  else (Timer.log "unrealizable"; raise Unrealizable);
+	  then Message.log "realizable"
+	  else (Message.log "unrealizable"; raise Unrealizable);
 	  let strat = Strategy.of_region game.circuit winning in
 	  let aiger_strat = Strategy.to_aiger game.aiger strat game.contr game.uncontr in
 	  Env.add_aiger env m.module_name aiger_strat
@@ -337,7 +336,7 @@ let parse_arguments =
 let main = 
   let specs = Reglisse.parse_file !input_file in
   Cudd.init 100;
-  Timer.log ("Parsed file "^ !input_file);
+  Message.log ("Parsed file "^ !input_file);
 
   let aig = match !synthesis_method with 
     | Classical -> classical_synthesis specs 
@@ -345,11 +344,11 @@ let main =
     | Adversarial -> adversarial_synthesis specs 
     | Admissible -> admissible_synthesis specs 
   in
-  Timer.log "exporting to aiger";
+  Message.log "exporting to aiger";
   write_aiger !input_file aig;
-  Timer.log "exporting to verilog";
+  Message.log "exporting to verilog";
   write_verilog !input_file "Main" aig;
-  if !display_total_time then (Timer.display (); print_newline ())
+  if !display_total_time then (Message.display (); print_newline ())
 
 
   
